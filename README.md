@@ -15,3 +15,13 @@ Before constructing the 3D scene textures, all five requested visual corrections
 - **8 Custom 3D Stage Sets (`public/app.js`)**: Arranged around a 3D studio ring (`STAGE_RADIUS = 28`), each stage pairs the high-resolution corrected comic panel on a 3D gold-trimmed cinema frame with animated 3D stage props (Katey's bedroom & hovering 3D magnifying glass, Suspect board & bouncing red arrow, 3-cone Interrogation spotlights, pop-up Alibi speech bubbles, green laser Fingerprint Scanner comparing Crime Scene vs. Mom/Amy/Lizzy, slamming `"Mom is Safe!"` rubber stamp with camera shake, short-haired Lizzy on the courtroom podium, and a 3D extruded beating BFF heart `"by Ella"`).
 - **Multi-Character Neural Voiceover (`public/audio/scene_1.mp3` – `scene_8.mp3`)**: Pre-generated neural voices for Detective/Narrator Ella, Katey's Mom, Amy, and Lizzy.
 - **In-Browser Voiceover Recording Studio**: Uses `MediaRecorder` + `IndexedDB` (`VoiceoverStore`) so Ella can click **🎙️ Voiceover Studio**, read from the built-in teleprompter, and record her own voice (or upload audio files) for any of the 8 scenes.
+
+## 4. 3D Character Model & "Nervous Interrogation" Animation (`lizzy_3d.blend` / `public/lizzy_3d.glb`)
+- **Sculpted 3D Head & 2K UV Facial Texture (`sprites/lizzy_face_uv_2k.png`)**: Anatomically sculpted `96×64` female head mesh (`Lizzy_Head`) with V-tapered jawline, recessed orbital sockets, integrated 3D nose bridge/tip, cheekbones, and 3D lips mapped with a custom 2048×2048 facial texture matching Lizzy's upturned worried eyebrows, hooded almond eyes, cheek blush, and parted lips.
+- **Natural Center-Parted Chin-Length Wavy Bob (`Lizzy_Hair_*` & `sprites/lizzy_hair_uv_2k.png`)**: Parted crown with recessed hair part, sweeping left and right 3D curtain bangs, layered chin-length bob locks, a visible sculpted right ear (`Lizzy_Ear_R`), and a 2K brushed chestnut-brown strand texture.
+- **120-Frame Seamless "Nervous Interrogation" Animation Loop (24 fps)**: Hierarchical pivot rig (`Lizzy_Pivot_*`) animating Panel 3's interrogation cues (*"scared"*, *"answering slowly and thinking"*, *"looking down"*, *"mumbling"*):
+  - Fidgeting/wringing clasped hands in front of her chest
+  - Bowing her head down and looking away to the left and right while avoiding eye contact, with a brief nervous glance up at Frame 58
+  - Rapid micro-nod/shake during the mumbling beat (Frames 65–100) with secondary hair follow-through sway
+  - Shallow nervous breathing, tense shrugging shoulders, side-to-side hip weight shift, and an anxious right sneaker toe-tap.
+

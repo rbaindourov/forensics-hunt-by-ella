@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Forensics HUNT! — A 3D Mystery Movie by Ella</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:ital,wght@0,700;1,700&family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- 3D Three.js Canvas Container -->
+  <div id="canvas-container" aria-label="3D Forensics Hunt Movie Viewport"></div>
+
+  <!-- Cinematic Letterbox Bars -->
+  <div class="letterbox letterbox-top" id="letterbox-top"></div>
+  <div class="letterbox letterbox-bottom" id="letterbox-bottom"></div>
+
+  <!-- Top Navigation & Studio Controls -->
+  <header class="top-hud">
+    <div class="brand-badge">
+      <span class="badge-icon">🔍</span>
+      <div>
+        <h1 class="movie-title">Forensics HUNT!</h1>
+        <p class="movie-subtitle">A 3D Interactive Mystery Movie • <strong>by Ella</strong></p>
+      </div>
+    </div>
+
+    <div class="hud-actions">
+      <button id="btn-camera-mode" class="hud-btn" title="Toggle between Cinematic Movie Camera and Free Orbit Inspection">
+        <span>🎥</span> <span id="camera-mode-label">Cinematic Cam</span>
+      </button>
+      <button id="btn-voice-studio" class="hud-btn hud-btn-accent" title="Record your own voiceover or customize character voices">
+        <span>🎙️</span> <span>Voiceover Studio</span>
+      </button>
+      <button id="btn-comic-sheet" class="hud-btn" title="Inspect and download the updated 8-panel comic strip">
+        <span>🖼️</span> <span>Edited Comic Strip</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Opening Cinema Curtain Overlay -->
+  <div id="start-overlay" class="start-overlay">
+    <div class="start-card">
+      <div class="start-pill">🎬 PREMIERE SCREENING • DIRECTED BY ELLA</div>
+      <h2>1. Forensics HUNT!</h2>
+      <p class="start-tagline">
+        “Katey went to her BFF's B-day party. But when she came back, her room was empty! <strong>Who Did This!</strong>”
+      </p>
+      <div class="start-Edits-summary">
+        <div class="edit-chip">✅ Panel 1: Floating open door removed</div>
+        <div class="edit-chip">✅ Panel 3: "Guilty" arrow on Lizzy removed</div>
+        <div class="edit-chip">✅ Panel 5: Crime Scene vs. Mom, Amy &amp; Lizzy prints separated</div>
+        <div class="edit-chip">✅ Panel 7: Lizzy's short bob hair matched</div>
+        <div class="edit-chip">✅ Panel 8: "by Ella" signature added</div>
+      </div>
+      <div class="start-buttons">
+        <button id="btn-start-movie" class="btn-primary-xl">
+          <span>▶️</span> Start 3D Movie with Voiceover
+        </button>
+        <button id="btn-open-recorder-start" class="btn-secondary-xl">
+          <span>🎙️</span> Record Ella's Own Voiceover First
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Scene Context Card (Top-Left during playback) -->
+  <aside class="scene-info-card" id="scene-info-card">
+    <div class="scene-step-pill" id="scene-step-pill">ACT 1 OF 8</div>
+    <h2 id="scene-heading">1. Forensics HUNT!</h2>
+    <p id="scene-Note-badge" class="scene-note-badge">✨ Floating open door removed from bedroom wall</p>
+  </aside>
+
+  <!-- Subtitle / Closed-Caption Teleprompter Bar -->
+  <section class="subtitle-container" aria-live="polite">
+    <div class="speaker-tag" id="speaker-tag">🎙️ NARRATOR (ELLA)</div>
+    <p class="subtitle-text" id="subtitle-text">
+      Story: Katey went to her BFF's B-day party. But when she came back, her room was empty! Who Did This!
+    </p>
+  </section>
+
+  <!-- Bottom Movie Transport & 8-Panel Timeline Bar -->
+  <footer class="bottom-hud">
+    <div class="transport-controls">
+      <button id="btn-prev" class="icon-btn" title="Previous Scene (Left Arrow)">⏮️</button>
+      <button id="btn-play-pause" class="play-btn" title="Play / Pause Movie (Spacebar)">
+        <span id="play-icon">▶️</span>
+        <span id="play-label">Play Movie</span>
+      </button>
+      <button id="btn-next" class="icon-btn" title="Next Scene (Right Arrow)">⏭️</button>
+      <button id="btn-replay-scene" class="icon-btn" title="Replay Current Scene Voiceover">🔄</button>
+    </div>
+
+    <!-- 8-Panel Storyboard Scrubber -->
+    <div class="timeline-strip" id="timeline-strip" role="tablist" aria-label="Movie Scenes">
+      <button class="scene-thumb active" data-scene="0" role="tab" aria-selected="true">
+        <span class="thumb-num">1</span>
+        <span class="thumb-title">Forensics Hunt</span>
+      </button>
+      <button class="scene-thumb" data-scene="1" role="tab" aria-selected="false">
+        <span class="thumb-num">2</span>
+        <span class="thumb-title">Suspects</span>
+      </button>
+      <button class="scene-thumb" data-scene="2" role="tab" aria-selected="false">
+        <span class="thumb-num">3</span>
+        <span class="thumb-title">Interrogation</span>
+      </button>
+      <button class="scene-thumb" data-scene="3" role="tab" aria-selected="false">
+        <span class="thumb-num">4</span>
+        <span class="thumb-title">What They Said</span>
+      </button>
+      <button class="scene-thumb" data-scene="4" role="tab" aria-selected="false">
+        <span class="thumb-num">5</span>
+        <span class="thumb-title">Fingerprints</span>
+      </button>
+      <button class="scene-thumb" data-scene="5" role="tab" aria-selected="false">
+        <span class="thumb-num">6</span>
+        <span class="thumb-title">Detective Notes</span>
+      </button>
+      <button class="scene-thumb" data-scene="6" role="tab" aria-selected="false">
+        <span class="thumb-num">7</span>
+        <span class="thumb-title">She Was Guilty!</span>
+      </button>
+      <button class="scene-thumb" data-scene="7" role="tab" aria-selected="false">
+        <span class="thumb-num">8</span>
+        <span class="thumb-title">BFF • by Ella</span>
+      </button>
+    </div>
+
+    <!-- Audio Mix Controls -->
+    <div class="audio-controls">
+      <label class="vol-control" title="Voiceover Volume">
+        <span>🗣️ Voice</span>
+        <input type="range" id="voice-volume" min="0" max="1" step="0.05" value="1" />
+      </label>
+      <label class="vol-control" title="Background Movie Score & Sound Effects Volume">
+        <span>🎵 Music/SFX</span>
+        <input type="range" id="music-volume" min="0" max="1" step="0.05" value="0.35" />
+      </label>
+    </div>
+  </footer>
+
+  <!-- Modal 1: Voiceover Recording & Customization Studio -->
+  <dialog id="voice-studio-modal" class="studio-modal">
+    <div class="modal-header">
+      <div>
+        <h2>🎙️ Ella's Voiceover Studio</h2>
+        <p>Every scene already comes with a full multi-character neural voiceover! Want to record your own voice or upload audio for any scene? Do it right here.</p>
+      </div>
+      <button id="btn-close-voice-studio" class="close-modal-btn" aria-label="Close Voiceover Studio">✕</button>
+    </div>
+
+    <div class="studio-body">
+      <div class="studio-mode-bar">
+        <span class="mode-label">Active Voiceover Mode:</span>
+        <label class="radio-pill">
+          <input type="radio" name="vo-mode" value="auto" checked />
+          <span>✨ Custom Recording (if recorded) + Cast Neural Voices</span>
+        </label>
+        <label class="radio-pill">
+          <input type="radio" name="vo-mode" value="tts" />
+          <span>🤖 Browser Speech Synthesizer</span>
+        </label>
+      </div>
+
+      <div id="studio-scene-list" class="studio-scene-list">
+        <!-- Populated dynamically by app.js for all 8 scenes -->
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal 2: Full Edited 8-Panel Comic Strip Viewer & Comparison -->
+  <dialog id="comic-sheet-modal" class="studio-modal comic-modal">
+    <div class="modal-header">
+      <div>
+        <h2>🖼️ Updated 8-Panel Comic Strip ("Forensics HUNT! — by Ella")</h2>
+        <p>All 5 requested revisions have been applied cleanly to the artwork before building the 3D movie.</p>
+      </div>
+      <div class="modal-header-actions">
+        <a href="./forensics_hunt_by_ella.png" download="Forensics_Hunt_by_Ella.png" class="btn-download">
+          ⬇️ Download High-Res PNG
+        </a>
+        <button id="btn-close-comic-modal" class="close-modal-btn" aria-label="Close Comic Viewer">✕</button>
+      </div>
+    </div>
+
+    <div class="comic-viewer-body">
+      <div class="comic-checklist">
+        <div class="check-item"><strong>1. Panel 1 (Front Page):</strong> Removed the floating open door on the right bedroom wall above the dresser.</div>
+        <div class="check-item"><strong>2. Panel 3 (Interrogation):</strong> Removed the arrow pointing at Lizzy saying "guilty".</div>
+        <div class="check-item"><strong>3. Panel 5 (Fingerprints):</strong> Removed "Mom" from under the Crime Scene fingerprint and placed Mom's, Amy's, and Lizzy's fingerprints separately under "Fingerprint".</div>
+        <div class="check-item"><strong>4. Panel 7 (She Was GUILTY!):</strong> Shortened Lizzy's hair to a chin-length bob matching her short hair in Panel 3.</div>
+        <div class="check-item"><strong>5. Panel 8 (BFF):</strong> Added "by Ella" at the bottom of the final panel.</div>
+      </div>
+      <div class="comic-image-wrapper">
+        <img src="./forensics_hunt_by_ella.png" alt="Forensics HUNT! 8-Panel Comic by Ella with all 5 edits applied" />
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

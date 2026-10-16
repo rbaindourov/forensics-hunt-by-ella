@@ -125,17 +125,17 @@ const SCENES = [
   },
   {
     id: 8,
-    title: '8. BFF — by Ella',
-    note: '✅ Note Applied: Added "by Ella" to the final BFF panel!',
+    title: '8. by Ella',
+    note: '✅ Note Applied: Final panel says "8. by Ella"!',
     speaker: '💖 CASE CLOSED • BY ELLA',
-    subtitle: '8. BFF ❤️ 🙂 ⭐ — by Ella!',
+    subtitle: '8. by Ella ❤️ 🙂 ⭐',
     audioUrl: './audio/scene_8.mp3',
     panelUrl: './panels/panel_8.png',
     bgColor: 0x361428,
     lightColor: 0xff758f,
-    durationFallback: 6.0,
+    durationFallback: 4.5,
     subCues: [
-      { t: 0.0, speaker: '💖 GRAND FINALE', text: '8. BFF Forever! ❤️ 🙂 ⭐ — Created by Ella!' }
+      { t: 0.0, speaker: '💖 GRAND FINALE', text: 'Part 8: Case closed, by Ella! ❤️ 🙂 ⭐' }
     ]
   }
 ];
@@ -848,7 +848,7 @@ SCENES.forEach((sceneData, idx) => {
     const ellaPlaque = new THREE.Mesh(
       new THREE.PlaneGeometry(3.2, 0.9),
       new THREE.MeshBasicMaterial({
-        map: makeLabelTexture('BFF ❤️ by Ella', '#ffd166', '#161026', 540, 150, 52),
+        map: makeLabelTexture('❤️ by Ella', '#ffd166', '#161026', 540, 150, 52),
         transparent: true
       })
     );

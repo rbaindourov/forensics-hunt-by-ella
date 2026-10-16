@@ -9,7 +9,7 @@ Before constructing the 3D scene textures, all five requested visual corrections
 2. **Panel 3 ("3. INTERROGATION")**: Removed the arrow pointing at Lizzy and the `"guilty"` label next to her.
 3. **Panel 5 ("5. Let's Narrow this Down! By Fingerprints!")**: Removed `"Mom"` from underneath the `"Crime scene:"` fingerprint box on the left, and placed three separate suspect fingerprint boxes labeled `"Mom"`, `"Amy"`, and `"Lizzy"` side-by-side on the right under `"Fingerprint"`.
 4. **Panel 7 ("7. She Was GUILTY!")**: Shortened Lizzy's hair into a chin-length brown bob to match her short hair in Panel 3.
-5. **Panel 8 ("8. BFF")**: Added `"by Ella"` at the bottom of the final panel.
+5. **Panel 8 ("8. by Ella")**: Replaced `"BFF"` in the final panel with `"by Ella"`, and updated the Scene 8 voiceover and 3D plaque to say `"by Ella"` without `"BFF"`.
 
 ## 3. Three.js 3D Soundstage & Voiceover Architecture
 - **8 Custom 3D Stage Sets (`public/app.js`)**: Arranged around a 3D studio ring (`STAGE_RADIUS = 28`), each stage pairs the high-resolution corrected comic panel on a 3D gold-trimmed cinema frame with animated 3D stage props (Katey's bedroom & hovering 3D magnifying glass, Suspect board & bouncing red arrow, 3-cone Interrogation spotlights, pop-up Alibi speech bubbles, green laser Fingerprint Scanner comparing Crime Scene vs. Mom/Amy/Lizzy, slamming `"Mom is Safe!"` rubber stamp with camera shake, short-haired Lizzy on the courtroom podium, and a 3D extruded beating BFF heart `"by Ella"`).

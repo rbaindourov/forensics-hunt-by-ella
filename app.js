@@ -497,23 +497,44 @@ function makeFingerprintCardMesh(label, isCrimeScene = false) {
 const STAGE_RADIUS = 28;
 const stageGroups = [];
 const animatedProps = {};
-const lizzyStageSlots = new Map(); // sceneIdx -> THREE.Group hosting 3D Lizzy
-const lizzyMixers = [];
+const characterSlots = {
+  lizzy: [],
+  mom: [],
+  amy: [],
+  katey: []
+};
+const characterSceneMap = new Map(); // `${sceneIdx}:${charKey}` -> THREE.Group
+const propPlacementQueue = []; // { propName, targetGroup, x, y, z, scale, rotX, rotY, rotZ }
+const characterMixers = [];
 const textureLoader = new THREE.TextureLoader();
 
-function createLizzySlot(sceneIdx, parentGroup, x, y, z, scale = 1.75) {
+function createCharacterSlot(charKey, sceneIdx, parentGroup, x, y, z, scale = 1.75, rotY = 0) {
   const slot = new THREE.Group();
   slot.position.set(x, y, z);
+  slot.rotation.y = rotY;
   slot.scale.set(scale, scale, scale);
 
-  // Dedicated warm front-key & rim light so 3D Lizzy's sculpted face, hair, and outfit shine
-  const charLight = new THREE.PointLight(0xfff5e4, 2.4, 9);
-  charLight.position.set(0.3, 1.35, 1.45);
+  // Dedicated warm front-key light so each 3D character's sculpted face, hair, and outfit shine
+  const charLight = new THREE.PointLight(0xfff5e4, 2.2, 8.5);
+  charLight.position.set(0.25, 1.35, 1.45);
   slot.add(charLight);
 
   parentGroup.add(slot);
-  lizzyStageSlots.set(sceneIdx, slot);
+  if (characterSlots[charKey]) {
+    characterSlots[charKey].push({ sceneIdx, slot });
+  }
+  characterSceneMap.set(`${sceneIdx}:${charKey}`, slot);
   return slot;
+}
+
+function queuePropInstance(propName, parentGroup, x, y, z, scale = 1.0, rotY = 0, rotX = 0, rotZ = 0) {
+  const holder = new THREE.Group();
+  holder.position.set(x, y, z);
+  holder.rotation.set(rotX, rotY, rotZ);
+  holder.scale.set(scale, scale, scale);
+  parentGroup.add(holder);
+  propPlacementQueue.push({ propName, holder });
+  return holder;
 }
 
 SCENES.forEach((sceneData, idx) => {
@@ -573,64 +594,92 @@ SCENES.forEach((sceneData, idx) => {
   stageGroup.add(diorama);
 
   if (idx === 0) {
-    // ACT 1: Katey's Empty Bedroom (Clean lavender wall - NO floating open door!)
+    // ACT 1: Katey's Empty Bedroom with Real 3D Blender & Poly Haven Props + 3D Animated Katey!
     const wall = new THREE.Mesh(
-      new THREE.BoxGeometry(4.2, 4.6, 0.18),
+      new THREE.BoxGeometry(4.5, 4.7, 0.18),
       new THREE.MeshStandardMaterial({ color: 0xc8b4d8, roughness: 0.7 })
     );
-    wall.position.set(0, 2.3, -1.4);
+    wall.position.set(0, 2.35, -1.4);
+    wall.receiveShadow = true;
     diorama.add(wall);
 
-    // Wooden Dresser with pulled-out drawers
-    const dresser = new THREE.Mesh(
-      new THREE.BoxGeometry(1.9, 1.35, 0.9),
-      new THREE.MeshStandardMaterial({ color: 0x8d6346, roughness: 0.6 })
+    // White baseboard along bottom of lavender bedroom wall
+    const baseboard = new THREE.Mesh(
+      new THREE.BoxGeometry(4.52, 0.18, 0.21),
+      new THREE.MeshStandardMaterial({ color: 0xf4effa, roughness: 0.5 })
     );
-    dresser.position.set(0.7, 0.68, -0.75);
-    diorama.add(dresser);
+    baseboard.position.set(0, 0.09, -1.39);
+    diorama.add(baseboard);
 
-    // Open drawer sticking out
-    const openDrawer = new THREE.Mesh(
-      new THREE.BoxGeometry(0.75, 0.32, 0.55),
-      new THREE.MeshStandardMaterial({ color: 0xa47551 })
+    // Panelled Cream Bedroom Door on left of wall with "Katey" plaque & brass doorknob
+    const doorFrame = new THREE.Mesh(
+      new THREE.BoxGeometry(1.38, 3.05, 0.08),
+      new THREE.MeshStandardMaterial({ color: 0xf5ebe6, roughness: 0.55 })
     );
-    openDrawer.position.set(1.1, 0.55, -0.2);
-    diorama.add(openDrawer);
+    doorFrame.position.set(-1.38, 1.52, -1.28);
+    const doorInner = new THREE.Mesh(
+      new THREE.BoxGeometry(1.16, 2.85, 0.06),
+      new THREE.MeshStandardMaterial({ color: 0xeadcd5, roughness: 0.6 })
+    );
+    doorInner.position.set(-1.38, 1.50, -1.25);
+    const kateyPlaque = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.68, 0.28),
+      new THREE.MeshBasicMaterial({ map: makeLabelTexture('Katey', '#e6b88a', '#2b1911', 256, 108, 52), transparent: true })
+    );
+    kateyPlaque.position.set(-1.38, 2.25, -1.20);
+    const doorKnob = new THREE.Mesh(
+      new THREE.SphereGeometry(0.065, 16, 16),
+      new THREE.MeshStandardMaterial({ color: 0xd4a359, metalness: 0.8, roughness: 0.25 })
+    );
+    doorKnob.position.set(-0.92, 1.38, -1.18);
+    diorama.add(doorFrame, doorInner, kateyPlaque, doorKnob);
 
-    // Little Potted Plant on top of dresser
-    const pot = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.16, 0.12, 0.24, 16),
-      new THREE.MeshStandardMaterial({ color: 0x7f4f24 })
-    );
-    pot.position.set(1.3, 1.48, -0.7);
-    const leaves = new THREE.Mesh(
-      new THREE.DodecahedronGeometry(0.22, 1),
-      new THREE.MeshStandardMaterial({ color: 0x52b788 })
-    );
-    leaves.position.set(1.3, 1.72, -0.7);
-    diorama.add(pot, leaves);
+    // Colorful sticky notes on right bedroom wall (matching Panel 1)
+    [
+      { x: 0.62, y: 2.65, col: '#d8f3dc', rot: 0.06 },
+      { x: 1.25, y: 2.72, col: '#fff3b0', rot: -0.05 },
+      { x: 0.98, y: 2.12, col: '#fff3b0', rot: 0.04 },
+      { x: 1.52, y: 2.18, col: '#ffccd5', rot: -0.07 }
+    ].forEach((sn) => {
+      const sticky = new THREE.Mesh(
+        new THREE.BoxGeometry(0.36, 0.36, 0.02),
+        new THREE.MeshStandardMaterial({ color: sn.col, roughness: 0.65 })
+      );
+      sticky.position.set(sn.x, sn.y, -1.29);
+      sticky.rotation.z = sn.rot;
+      diorama.add(sticky);
+    });
 
-    // Spinning Purple Desk Chair
-    const chairGroup = new THREE.Group();
-    chairGroup.position.set(-0.9, 0.0, 0.1);
-    const seat = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.45, 0.45, 0.12, 24),
-      new THREE.MeshStandardMaterial({ color: 0x6c5ce7 })
+    // Lavender Bedroom Rug on floor in front of dresser
+    const rug = new THREE.Mesh(
+      new THREE.BoxGeometry(2.65, 0.03, 1.35),
+      new THREE.MeshStandardMaterial({ color: 0x9d84b7, roughness: 0.85 })
     );
-    seat.position.y = 0.75;
-    const backrest = new THREE.Mesh(
-      new THREE.BoxGeometry(0.7, 0.75, 0.12),
-      new THREE.MeshStandardMaterial({ color: 0x5f4dd0 })
-    );
-    backrest.position.set(0, 1.35, -0.32);
-    const pole = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.06, 0.06, 0.75, 12),
-      new THREE.MeshStandardMaterial({ color: 0x2d3436, metalness: 0.8 })
-    );
-    pole.position.y = 0.38;
-    chairGroup.add(seat, backrest, pole);
-    diorama.add(chairGroup);
+    rug.position.set(0.55, 0.015, 0.48);
+    rug.receiveShadow = true;
+    diorama.add(rug);
+
+    // 1. Real 3D Walnut Chest of Drawers with Open Hollow Drawers & Spilled Papers
+    queuePropInstance('Prop_Wooden_Dresser', diorama, 0.82, 0.0, -0.78, 1.35, 0);
+
+    // 2. Poly Haven CC0 Potted Zebra Haworthia Succulent on right corner of dresser
+    queuePropInstance('Prop_Potted_Succulent', diorama, 1.52, 1.18, -0.72, 1.45, 0.4);
+
+    // 3. Poly Haven CC0 Open Binder Notebook on left corner of dresser
+    queuePropInstance('Prop_Binder_Notebook', diorama, 0.15, 1.20, -0.68, 1.35, 0.25);
+
+    // 4. Poly Haven CC0 Wooden Picture Frame hanging on bedroom wall
+    queuePropInstance('Prop_Picture_Frame', diorama, -0.18, 2.55, -1.28, 1.25, 0);
+
+    // 5. Real 3D Purple Rolling Swivel Office Chair on 5 caster wheels (animated swivel!)
+    const chairGroup = queuePropInstance('Prop_Swivel_Chair', diorama, -0.95, 0.0, -0.18, 1.45, 0.35);
     animatedProps.chair = chairGroup;
+
+    // 6. Real 3D Over-Ear Headphones + Cord + Necklace lying on the bedroom rug
+    queuePropInstance('Prop_Headphones', diorama, 0.88, 0.03, 0.55, 1.55, 0.15);
+
+    // 7. 3D Rigged & Animated Stylized Katey discovering her empty bedroom!
+    createCharacterSlot('katey', idx, diorama, -1.85, 0.0, 0.42, 1.72, 0.28);
 
     // 3D Magnifying Glass hovering & scanning the crime scene
     const magGroup = new THREE.Group();
@@ -650,21 +699,21 @@ SCENES.forEach((sceneData, idx) => {
     handle.position.set(0.55, -0.55, 0);
     handle.rotation.z = Math.PI / 4;
     magGroup.add(rim, lens, handle);
-    magGroup.position.set(0, 2.5, 0.6);
+    magGroup.position.set(0.2, 2.6, 0.65);
     diorama.add(magGroup);
     animatedProps.magnifyingGlass = magGroup;
   } else if (idx === 1) {
-    // ACT 2: 3D Detective Suspects Board + 3D Animated Lizzy (Suspect #3)
+    // ACT 2: 3D Detective Suspects Board + ALL 3 3D Rigged Suspects (Mom, Amy & Lizzy)!
     const board = new THREE.Mesh(
-      new THREE.BoxGeometry(3.2, 4.4, 0.25),
+      new THREE.BoxGeometry(3.1, 4.4, 0.25),
       new THREE.MeshStandardMaterial({ color: 0xf3e5ab, roughness: 0.6 })
     );
-    board.position.set(-0.65, 2.3, -0.5);
+    board.position.set(-0.95, 2.3, -0.65);
     const woodBorder = new THREE.Mesh(
-      new THREE.BoxGeometry(3.5, 4.7, 0.2),
+      new THREE.BoxGeometry(3.4, 4.7, 0.2),
       new THREE.MeshStandardMaterial({ color: 0x7f5539 })
     );
-    woodBorder.position.set(-0.65, 2.3, -0.55);
+    woodBorder.position.set(-0.95, 2.3, -0.70);
     diorama.add(woodBorder, board);
 
     const suspects = [
@@ -675,10 +724,10 @@ SCENES.forEach((sceneData, idx) => {
     ];
     suspects.forEach((s) => {
       const card = new THREE.Mesh(
-        new THREE.PlaneGeometry(2.85, 0.72),
+        new THREE.PlaneGeometry(2.75, 0.72),
         new THREE.MeshBasicMaterial({ map: makeLabelTexture(s.name, s.col, '#111', 512, 120, 42), transparent: true })
       );
-      card.position.set(-0.65, s.y, -0.35);
+      card.position.set(-0.95, s.y, -0.50);
       diorama.add(card);
     });
 
@@ -695,60 +744,72 @@ SCENES.forEach((sceneData, idx) => {
     );
     shaft.position.y = 0.6;
     arrowGroup.add(cone, shaft);
-    arrowGroup.position.set(0.1, 5.1, -0.2);
+    arrowGroup.position.set(-0.2, 5.1, -0.35);
     arrowGroup.rotation.z = -0.25;
     diorama.add(arrowGroup);
     animatedProps.suspectArrow = arrowGroup;
 
-    // 3D Rigged & Animated Stylized Lizzy beside Suspect Board
-    createLizzySlot(idx, diorama, 1.95, 0.0, 0.35, 1.75);
+    // All 3 3D Rigged & Animated Suspects lined up beside the Suspects Board!
+    createCharacterSlot('mom', idx, diorama, 0.85, 0.0, -0.15, 1.58, -0.12);
+    createCharacterSlot('amy', idx, diorama, 1.65, 0.0, 0.25, 1.58, -0.18);
+    createCharacterSlot('lizzy', idx, diorama, 2.45, 0.0, 0.55, 1.62, -0.25);
   } else if (idx === 2) {
-    // ACT 3: 3D Interrogation Spotlights on Mom, Amy, and 3D Animated Stylized Lizzy!
+    // ACT 3: 3D INTERROGATION — All 3 3D Animated Suspects (Mom, Amy, Lizzy) + 3D Interrogation Chairs + 3D Barn-Door Spotlights!
     const pedColors = [0xe56b6f, 0xf4a261, 0x6d597a];
-    const labels = ["Katey's Mom\n(biting lip)", 'Amy\n(nervous smile)', 'Lizzy\n(scared, mumbling)'];
+    const suspectConfigs = [
+      { key: 'mom', label: "Katey's Mom", badgeCol: '#ffccd5', coneCol: 0xff758f },
+      { key: 'amy', label: 'Amy (Peace ✌️)', badgeCol: '#ffe66d', coneCol: 0xffe66d },
+      { key: 'lizzy', label: 'Lizzy (Mumbling)', badgeCol: '#e0aaff', coneCol: 0xc77dff }
+    ];
     animatedProps.interrogationCones = [];
+    animatedProps.interrogationRigs = [];
 
-    labels.forEach((lbl, i) => {
-      const xPos = (i - 1) * 1.48;
-      const isLizzy = i === 2;
-      const pedHeight = isLizzy ? 0.36 : 1.3;
+    suspectConfigs.forEach((cfg, i) => {
+      const xPos = (i - 1) * 1.55;
+      const pedHeight = 0.36;
       const stand = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.55, 0.64, pedHeight, 24),
-        new THREE.MeshStandardMaterial({ color: pedColors[i] })
+        new THREE.CylinderGeometry(0.62, 0.70, pedHeight, 28),
+        new THREE.MeshStandardMaterial({ color: pedColors[i], roughness: 0.35, metalness: 0.2 })
       );
       stand.position.set(xPos, pedHeight * 0.5, 0);
+      stand.receiveShadow = true;
       diorama.add(stand);
 
       const badge = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.38, 0.62),
+        new THREE.PlaneGeometry(1.42, 0.58),
         new THREE.MeshBasicMaterial({
-          map: makeLabelTexture(lbl.split('\n')[0], isLizzy ? '#ffd166' : '#fff', '#111', 380, 120, 38),
+          map: makeLabelTexture(cfg.label, cfg.badgeCol, '#111', 400, 120, 36),
           transparent: true
         })
       );
-      badge.position.set(xPos, isLizzy ? 4.15 : 1.65, 0.35);
+      badge.position.set(xPos, 4.05, 0.42);
       diorama.add(badge);
 
-      // Volumetric Spotlight Cone
+      // 1. Real Poly Haven CC0 3D Interrogation Chair (`Prop_Interrogation_Chair`) on each pedestal behind the suspect!
+      queuePropInstance('Prop_Interrogation_Chair', diorama, xPos, pedHeight, -0.26, 1.35, 0);
+
+      // 2. Real 3D Theatrical Barn-Door Interrogation Spotlight (`Prop_Interrogation_Spotlight`) mounted overhead!
+      const spotRig = queuePropInstance('Prop_Interrogation_Spotlight', diorama, xPos, 5.25, 0.25, 1.35, 0);
+      animatedProps.interrogationRigs.push(spotRig);
+
+      // Volumetric Spotlight Cone streaming down from the 3D Barn-Door Spotlight
       const coneMat = new THREE.MeshBasicMaterial({
-        color: 0xffe66d,
+        color: cfg.coneCol,
         transparent: true,
-        opacity: isLizzy ? 0.16 : 0.22,
+        opacity: 0.16,
         side: THREE.DoubleSide,
         depthWrite: false
       });
-      const lightCone = new THREE.Mesh(new THREE.ConeGeometry(1.05, 4.5, 24, 1, true), coneMat);
-      lightCone.position.set(xPos, 3.35, 0);
+      const lightCone = new THREE.Mesh(new THREE.ConeGeometry(1.02, 4.5, 24, 1, true), coneMat);
+      lightCone.position.set(xPos, 3.15, 0.05);
       diorama.add(lightCone);
       animatedProps.interrogationCones.push(lightCone);
 
-      if (isLizzy) {
-        // Place full 3D Rigged & Animated Stylized Lizzy directly on the 3rd Interrogation Pedestal!
-        createLizzySlot(idx, diorama, xPos, pedHeight, 0.08, 1.85);
-      }
+      // 3. Place the 3D Rigged & Animated Suspect (Mom #1, Amy #2, Lizzy #3) on their pedestal!
+      createCharacterSlot(cfg.key, idx, diorama, xPos, pedHeight, 0.12, 1.76, (1 - i) * 0.12);
     });
   } else if (idx === 3) {
-    // ACT 4: 3D Pop-Up Speech Bubbles ("But, What did they say!") + 3D Animated Lizzy
+    // ACT 4: 3D Pop-Up Speech Bubbles ("But, What did they say!") + 3D Mom, Amy & Lizzy
     animatedProps.speechBubbles = [];
     const lines = [
       { who: 'Mom: "Emergency meeting at work!"', y: 3.7, col: '#ffffff' },
@@ -757,20 +818,22 @@ SCENES.forEach((sceneData, idx) => {
     ];
     lines.forEach((item, i) => {
       const bubble = new THREE.Mesh(
-        new THREE.PlaneGeometry(3.4, 0.92),
+        new THREE.PlaneGeometry(3.3, 0.90),
         new THREE.MeshBasicMaterial({
           map: makeLabelTexture(item.who, item.col, '#111', 680, 140, 34),
           transparent: true
         })
       );
-      bubble.position.set(-0.55, item.y, 0.1 * i);
+      bubble.position.set(-0.75, item.y, 0.08 * i);
       diorama.add(bubble);
       animatedProps.speechBubbles.push(bubble);
     });
 
-    createLizzySlot(idx, diorama, 2.05, 0.0, 0.4, 1.78);
+    createCharacterSlot('mom', idx, diorama, 1.05, 0.0, -0.25, 1.55, -0.15);
+    createCharacterSlot('amy', idx, diorama, 1.78, 0.0, 0.15, 1.55, -0.20);
+    createCharacterSlot('lizzy', idx, diorama, 2.48, 0.0, 0.50, 1.62, -0.25);
   } else if (idx === 4) {
-    // ACT 5: 3D Forensics Fingerprint Scanner (Crime Scene vs. Mom, Amy, Lizzy separately!)
+    // ACT 5: 3D Forensics Fingerprint Scanner (Crime Scene vs. Mom, Amy, Lizzy separately!) + 3D Amy & Lizzy
     const crimePrint = makeFingerprintCardMesh('', true);
     crimePrint.position.set(-1.65, 2.2, 0);
     diorama.add(crimePrint);
@@ -804,31 +867,38 @@ SCENES.forEach((sceneData, idx) => {
     laserBar.position.set(0.2, 2.2, 0.22);
     diorama.add(laserBar);
     animatedProps.laserBar = laserBar;
+
+    // 3D Amy (cleared by fingerprints!) standing on the right
+    createCharacterSlot('amy', idx, diorama, 2.65, 0.0, 0.45, 1.65, -0.28);
   } else if (idx === 5) {
-    // ACT 6: Detective Notes & Giant 3D "Mom is Safe!" Rubber Stamp + 3D Animated Lizzy
+    // ACT 6: Detective Notes & Giant 3D "Mom is Safe!" Rubber Stamp + 3D Mom & 3D Lizzy!
     const pad = new THREE.Mesh(
-      new THREE.BoxGeometry(3.2, 4.3, 0.18),
+      new THREE.BoxGeometry(3.1, 4.3, 0.18),
       new THREE.MeshStandardMaterial({ color: 0xffea85, roughness: 0.5 })
     );
-    pad.position.set(-0.65, 2.3, -0.3);
+    pad.position.set(-0.75, 2.3, -0.35);
     diorama.add(pad);
 
     const stampBanner = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.0, 0.92),
+      new THREE.PlaneGeometry(2.9, 0.92),
       new THREE.MeshBasicMaterial({
         map: makeLabelTexture('Mom is Safe!', '#fff3b0', '#111111', 560, 150, 58),
         transparent: true
       })
     );
-    stampBanner.position.set(-0.65, 1.05, -0.15);
+    stampBanner.position.set(-0.75, 1.05, -0.18);
     stampBanner.rotation.z = 0.08;
     diorama.add(stampBanner);
     animatedProps.momSafeStamp = stampBanner;
 
-    createLizzySlot(idx, diorama, 1.95, 0.0, 0.35, 1.78);
+    // 3D Mom (stamped Safe!) and 3D Lizzy (Nervous & Mumbling!) side-by-side
+    createCharacterSlot('mom', idx, diorama, 1.15, 0.0, 0.15, 1.68, -0.12);
+    createCharacterSlot('lizzy', idx, diorama, 2.25, 0.0, 0.42, 1.72, -0.24);
   } else if (idx === 6) {
-    // ACT 7: "7. She Was GUILTY!" — Full 3D Rigged & Animated Stylized Lizzy on the Spotlight Podium!
-    const lizzyHeroSlot = createLizzySlot(idx, diorama, 0.0, 0.0, 0.25, 2.15);
+    // ACT 7: "7. She Was GUILTY!" — Full 3D Rigged & Animated Stylized Lizzy + 3D Interrogation Chair & Overhead Spotlight!
+    queuePropInstance('Prop_Interrogation_Chair', diorama, 0.0, 0.0, -0.25, 1.55, 0);
+    queuePropInstance('Prop_Interrogation_Spotlight', diorama, 0.0, 5.45, 0.35, 1.55, 0);
+    const lizzyHeroSlot = createCharacterSlot('lizzy', idx, diorama, 0.0, 0.0, 0.25, 2.15, 0);
 
     const guiltyBanner = new THREE.Mesh(
       new THREE.PlaneGeometry(3.8, 0.95),
@@ -842,7 +912,7 @@ SCENES.forEach((sceneData, idx) => {
     animatedProps.guiltyBanner = guiltyBanner;
     animatedProps.lizzyStandee = lizzyHeroSlot;
   } else if (idx === 7) {
-    // ACT 8: "8. BFF — by Ella" — 3D Sculpted Extruded Heart, Spinning Gold Star & Credit
+    // ACT 8: "8. by Ella" — 3D Sculpted Extruded Heart + Full 4-Character 3D Cast Curtain Call!
     const heartShape = new THREE.Shape();
     const x = 0, y = 0;
     heartShape.moveTo(x, y + 0.5);
@@ -866,7 +936,7 @@ SCENES.forEach((sceneData, idx) => {
       heartGeo,
       new THREE.MeshStandardMaterial({ color: 0xe63946, roughness: 0.2, metalness: 0.25 })
     );
-    heartMesh.position.set(0, 2.75, 0.2);
+    heartMesh.position.set(0, 3.15, -0.2);
     diorama.add(heartMesh);
     animatedProps.bffHeart = heartMesh;
 
@@ -878,42 +948,88 @@ SCENES.forEach((sceneData, idx) => {
         transparent: true
       })
     );
-    ellaPlaque.position.set(0, 0.75, 0.4);
+    ellaPlaque.position.set(0, 1.05, -0.1);
     diorama.add(ellaPlaque);
+
+    // Full 4-Character 3D Cast Curtain Call around the Finale Heart!
+    createCharacterSlot('katey', idx, diorama, -1.75, 0.0, 0.45, 1.48, 0.22);
+    createCharacterSlot('mom', idx, diorama, -0.65, 0.0, 0.55, 1.48, 0.08);
+    createCharacterSlot('amy', idx, diorama, 0.65, 0.0, 0.55, 1.48, -0.08);
+    createCharacterSlot('lizzy', idx, diorama, 1.75, 0.0, 0.45, 1.48, -0.22);
   }
 });
 
-// Load Blender Studio Stylized Female 3D Lizzy Model (./lizzy_3d.glb) & Skeletal Interrogation Loop
+// Load All 4 Blender Studio Stylized Female 3D Characters (Lizzy, Mom, Amy & Katey) + Skeletal Loops
 const gltfLoader = new GLTFLoader();
-gltfLoader.load('./lizzy_3d.glb', (gltf) => {
-  const baseModel = gltf.scene;
-  const clips = gltf.animations || [];
+const CHARACTER_GLB_SPECS = [
+  { key: 'lizzy', url: './lizzy_3d.glb', clipName: 'Lizzy_Nervous_Interrogation' },
+  { key: 'mom',   url: './mom_3d.glb',   clipName: 'Mom_Biting_Lip_Interrogation' },
+  { key: 'amy',   url: './amy_3d.glb',   clipName: 'Amy_Forced_Peace_Interrogation' },
+  { key: 'katey', url: './katey_3d.glb', clipName: 'Katey_Room_Discovery' }
+];
 
-  lizzyStageSlots.forEach((slotGroup) => {
-    const cloned = SkeletonUtils.clone(baseModel);
-    cloned.traverse((node) => {
-      if (node.isMesh) {
-        node.castShadow = true;
-        node.receiveShadow = true;
-        node.frustumCulled = false;
-        if (node.material) {
-          node.material = node.material.clone();
-          // Ensure Mat_Studio_CropTop uses its pure charcoal-plum Base Color without multiplying Col_Skin
-          if (node.material.name && node.material.name.includes('CropTop')) {
-            node.material.vertexColors = false;
+CHARACTER_GLB_SPECS.forEach(({ key, url, clipName }) => {
+  gltfLoader.load(url, (gltf) => {
+    const baseModel = gltf.scene;
+    const clips = gltf.animations || [];
+    const targetClip = clips.find((c) => c.name === clipName) || clips[0];
+
+    (characterSlots[key] || []).forEach(({ slot }) => {
+      const cloned = SkeletonUtils.clone(baseModel);
+      cloned.traverse((node) => {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+          node.frustumCulled = false;
+          if (node.material) {
+            node.material = node.material.clone();
+            const mName = node.material.name || '';
+            // Ensure shirt/sweater materials on the shared body mesh render their pure Base Color without Col_Skin tinting
+            if (
+              mName.includes('CropTop') ||
+              mName.includes('PinkShirt') ||
+              mName.includes('StarTee') ||
+              mName.includes('Sweater')
+            ) {
+              node.material.vertexColors = false;
+            }
+            node.material.needsUpdate = true;
           }
-          node.material.needsUpdate = true;
         }
+      });
+      slot.add(cloned);
+
+      if (targetClip) {
+        const mixer = new THREE.AnimationMixer(cloned);
+        const action = mixer.clipAction(targetClip);
+        action.play();
+        characterMixers.push(mixer);
       }
     });
-    slotGroup.add(cloned);
+  });
+});
 
-    if (clips.length > 0) {
-      const mixer = new THREE.AnimationMixer(cloned);
-      const action = mixer.clipAction(clips[0]);
-      action.play();
-      lizzyMixers.push(mixer);
+// Load 3D Bedroom & Interrogation Props Library (./scene_props_3d.glb)
+gltfLoader.load('./scene_props_3d.glb', (gltf) => {
+  const propTemplates = new Map();
+  gltf.scene.traverse((node) => {
+    if (node.name && node.name.startsWith('Prop_')) {
+      propTemplates.set(node.name, node);
     }
+  });
+
+  propPlacementQueue.forEach(({ propName, holder }) => {
+    const template = propTemplates.get(propName);
+    if (!template) return;
+    const clone = template.clone(true);
+    clone.position.set(0, 0, 0);
+    clone.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    holder.add(clone);
   });
 });
 
@@ -928,7 +1044,13 @@ audioPlayer.preload = 'auto';
 let currentSceneIdx = 0;
 let isMoviePlaying = false;
 let cameraMode = 'cinematic'; // 'cinematic' or 'orbit'
-let lizzyCloseupMode = false;
+let closeupCharKey = null; // null | 'lizzy' | 'mom' | 'amy' | 'katey'
+const CLOSEUP_ORDER = [
+  { key: 'lizzy', label: 'Close-Up: Lizzy', defaultScene: 2 },
+  { key: 'mom',   label: "Close-Up: Katey's Mom", defaultScene: 2 },
+  { key: 'amy',   label: 'Close-Up: Amy ✌️', defaultScene: 2 },
+  { key: 'katey', label: 'Close-Up: Katey', defaultScene: 0 }
+];
 let userOrbitAngle = 0;
 let sceneElapsed = 0;
 let cameraShakeIntensity = 0;
@@ -1230,14 +1352,26 @@ btnCameraMode.addEventListener('click', () => {
 
 if (btnLizzyCloseup) {
   btnLizzyCloseup.addEventListener('click', () => {
-    lizzyCloseupMode = !lizzyCloseupMode;
-    lizzyCloseupLabel.textContent = lizzyCloseupMode ? 'Full Stage View' : '3D Lizzy Close-Up';
-    btnLizzyCloseup.classList.toggle('hud-btn-accent', lizzyCloseupMode);
-    if (lizzyCloseupMode) {
-      startOverlay.classList.add('hidden');
-      if (!lizzyStageSlots.has(currentSceneIdx)) {
-        goToScene(2, isMoviePlaying); // Jump to Act 3 (Interrogation) where 3D Lizzy is under the spotlight
+    startOverlay.classList.add('hidden');
+    const curIdx = CLOSEUP_ORDER.findIndex((item) => item.key === closeupCharKey);
+    if (curIdx === -1) {
+      closeupCharKey = CLOSEUP_ORDER[0].key;
+    } else if (curIdx < CLOSEUP_ORDER.length - 1) {
+      closeupCharKey = CLOSEUP_ORDER[curIdx + 1].key;
+    } else {
+      closeupCharKey = null;
+    }
+
+    if (closeupCharKey) {
+      const spec = CLOSEUP_ORDER.find((item) => item.key === closeupCharKey);
+      lizzyCloseupLabel.textContent = spec.label;
+      btnLizzyCloseup.classList.add('hud-btn-accent');
+      if (!characterSceneMap.has(`${currentSceneIdx}:${closeupCharKey}`)) {
+        goToScene(spec.defaultScene, isMoviePlaying);
       }
+    } else {
+      lizzyCloseupLabel.textContent = '3D Cast Close-Up';
+      btnLizzyCloseup.classList.remove('hud-btn-accent');
     }
   });
 }
@@ -1315,21 +1449,27 @@ function animate() {
   const elapsed = clock.getElapsedTime();
   sceneElapsed += dt;
 
-  // Advance all 3D Lizzy skeletal AnimationMixers (120-frame Nervous Interrogation loop)
-  for (let i = 0; i < lizzyMixers.length; i++) {
-    lizzyMixers[i].update(dt);
+  // Advance all 3D character skeletal AnimationMixers (Lizzy, Mom, Amy & Katey)
+  for (let i = 0; i < characterMixers.length; i++) {
+    characterMixers[i].update(dt);
   }
 
   // Target stage position & angle
   const angle = (currentSceneIdx / SCENES.length) * Math.PI * 2;
   const stageCenter = stageGroups[currentSceneIdx].position;
-  const activeLizzySlot = lizzyStageSlots.get(currentSceneIdx);
+  const activeCharSlot = closeupCharKey
+    ? (characterSceneMap.get(`${currentSceneIdx}:${closeupCharKey}`) ||
+       characterSceneMap.get(`${ currentSceneIdx }:lizzy`) ||
+       characterSceneMap.get(`${ currentSceneIdx }:mom`) ||
+       characterSceneMap.get(`${ currentSceneIdx }:amy`) ||
+       characterSceneMap.get(`${ currentSceneIdx }:katey`))
+    : null;
 
-  if (lizzyCloseupMode && activeLizzySlot) {
-    activeLizzySlot.getWorldPosition(lizzyWorldPos);
-    const charScale = activeLizzySlot.scale.y;
-    const lookY = lizzyWorldPos.y + charScale * 1.05;
-    const closeDist = charScale * 2.05;
+  if (closeupCharKey && activeCharSlot) {
+    activeCharSlot.getWorldPosition(lizzyWorldPos);
+    const charScale = activeCharSlot.scale.y;
+    const lookY = lizzyWorldPos.y + charScale * 1.15;
+    const closeDist = charScale * 1.95;
     const orbitYaw = angle + userOrbitAngle + (cameraMode === 'orbit' ? elapsed * 0.45 : Math.sin(elapsed * 0.6) * 0.08);
 
     targetCamPos.set(
@@ -1379,7 +1519,7 @@ function animate() {
 
   // Animate Stage Props
   if (animatedProps.chair) {
-    animatedProps.chair.rotation.y = Math.sin(elapsed * 1.5) * 0.65;
+    animatedProps.chair.rotation.y = 0.35 + Math.sin(elapsed * 1.5) * 0.55;
   }
   if (animatedProps.magnifyingGlass) {
     animatedProps.magnifyingGlass.position.x = Math.sin(elapsed * 1.4) * 1.1;
@@ -1391,13 +1531,17 @@ function animate() {
   }
   if (animatedProps.interrogationCones) {
     animatedProps.interrogationCones.forEach((cone, i) => {
-      cone.rotation.z = Math.sin(elapsed * 1.8 + i) * 0.08;
-      cone.material.opacity = 0.16 + Math.sin(elapsed * 3 + i * 2) * 0.08;
+      const swayZ = Math.sin(elapsed * 1.8 + i) * 0.06;
+      cone.rotation.z = swayZ;
+      cone.material.opacity = 0.14 + Math.sin(elapsed * 3 + i * 2) * 0.06;
+      if (animatedProps.interrogationRigs && animatedProps.interrogationRigs[i]) {
+        animatedProps.interrogationRigs[i].rotation.z = swayZ * 0.7;
+      }
     });
   }
   if (animatedProps.speechBubbles) {
     animatedProps.speechBubbles.forEach((b, i) => {
-      b.position.x = -0.55 + Math.sin(elapsed * 2 + i) * 0.08;
+      b.position.x = -0.75 + Math.sin(elapsed * 2 + i) * 0.08;
       const scale = 1 + Math.sin(elapsed * 3 + i * 1.5) * 0.03;
       b.scale.set(scale, scale, 1);
     });

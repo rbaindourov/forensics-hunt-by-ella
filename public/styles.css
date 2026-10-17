@@ -222,6 +222,113 @@ html, body {
   flex-wrap: wrap;
   justify-content: center;
   gap: 12px;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.start-buttons.hidden {
+  display: none !important;
+}
+
+/* Startup Asset Loader UI */
+.startup-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  background: rgba(14, 10, 32, 0.85);
+  border: 1px solid rgba(255, 209, 102, 0.35);
+  border-radius: 20px;
+  padding: 20px 24px;
+  margin-top: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(155, 93, 229, 0.15);
+  transition: opacity 0.3s ease;
+}
+
+.startup-loader.hidden {
+  display: none !important;
+}
+
+.loader-spinner-wrapper {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader-spinner {
+  position: absolute;
+  inset: 0;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  border-top: 3px solid var(--accent-gold);
+  border-right: 3px solid var(--accent-pink);
+  border-radius: 50%;
+  animation: spinLoader 0.9s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite;
+}
+
+@keyframes spinLoader {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loader-icon {
+  font-size: 1.5rem;
+  filter: drop-shadow(0 0 8px rgba(255, 209, 102, 0.6));
+  animation: pulseIcon 1.8s ease-in-out infinite;
+}
+
+@keyframes pulseIcon {
+  0%, 100% { transform: scale(0.92); opacity: 0.85; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+.loader-text-group {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+
+.loader-status {
+  font-family: var(--font-comic);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  letter-spacing: 0.02em;
+}
+
+.loader-bar-bg {
+  width: 100%;
+  height: 9px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.loader-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #00f5d4, #ffd166, #ff5d8f);
+  background-size: 200% 100%;
+  border-radius: 999px;
+  transition: width 0.25s ease-out;
+  animation: shimmerBar 2s linear infinite;
+  box-shadow: 0 0 10px rgba(0, 245, 212, 0.5);
+}
+
+@keyframes shimmerBar {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.loader-subtext {
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
 .btn-primary-xl {

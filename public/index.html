@@ -62,12 +62,27 @@
       <div class="start-Edits-summary">
         <div class="edit-chip">✨ 3D Rigged Cast: Katey, Mom, Amy &amp; Lizzy</div>
         <div class="edit-chip">🪑 3D Bedroom &amp; Interrogation Props</div>
-        <div class="edit-chip">✅ Panel 1: Floating open door removed</div>
-        <div class="edit-chip">✅ Panel 3: "Guilty" arrow on Lizzy removed</div>
-        <div class="edit-chip">✅ Panel 5: Crime Scene vs. Mom, Amy &amp; Lizzy prints separated</div>
-        <div class="edit-chip">✅ Panel 7 &amp; 8: Short-bob Lizzy &amp; "by Ella" finale</div>
+        <div class="edit-chip">🪐 3D Cosmic Saturn Backdrop</div>
+        <div class="edit-chip">🔍 Poly Haven Magnifying Glass</div>
+        <div class="edit-chip">📋 Act 6 Detective Notes &amp; Slamming Stamp</div>
       </div>
-      <div class="start-buttons">
+
+      <!-- Initial 3D Asset Loader UI -->
+      <div id="startup-loader" class="startup-loader">
+        <div class="loader-spinner-wrapper">
+          <div class="loader-spinner"></div>
+          <span class="loader-icon">🪐</span>
+        </div>
+        <div class="loader-text-group">
+          <div class="loader-status" id="loader-status-text">Loading 3D Cast &amp; Cosmic Assets…</div>
+          <div class="loader-bar-bg">
+            <div class="loader-bar-fill" id="loader-bar-fill" style="width: 0%;"></div>
+          </div>
+          <div class="loader-subtext" id="loader-subtext">Preparing parallel pipeline (0 / 5 models loaded)</div>
+        </div>
+      </div>
+
+      <div class="start-buttons hidden" id="start-buttons-group">
         <button id="btn-start-movie" class="btn-primary-xl">
           <span>▶️</span> Start 3D Movie with Voiceover
         </button>

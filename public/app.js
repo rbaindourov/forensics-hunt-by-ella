@@ -348,68 +348,129 @@ renderer.toneMappingExposure = 1.15;
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x161026);
-scene.fog = new THREE.FogExp2(0x161026, 0.012);
+scene.background = new THREE.Color(0x060311);
+scene.fog = new THREE.FogExp2(0x060311, 0.0026);
 
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
 camera.position.set(0, 6, 42);
 
 // Lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.92);
 scene.add(ambientLight);
 
-const keySpotLight = new THREE.SpotLight(0xfff4d6, 3.2, 65, Math.PI / 4, 0.45, 1);
+const keySpotLight = new THREE.SpotLight(0xfff4d6, 3.4, 75, Math.PI / 4, 0.45, 1);
 keySpotLight.position.set(0, 18, 38);
 keySpotLight.castShadow = true;
 scene.add(keySpotLight);
 scene.add(keySpotLight.target);
 
-const rimLight = new THREE.PointLight(0x9b5de5, 2.2, 40);
+const rimLight = new THREE.PointLight(0x9b5de5, 2.5, 55);
 rimLight.position.set(-8, 10, 28);
 scene.add(rimLight);
 
-// Studio Soundstage Floor
+// ============================================================================
+// 4A. COSMIC DEEP-SPACE NEBULA SKY DOME & ORBITAL SOUNDSTAGE FLOOR
+// ============================================================================
+function createCosmicSkyTexture() {
+  const c = document.createElement('canvas');
+  c.width = 2048;
+  c.height = 1024;
+  const ctx = c.getContext('2d');
+
+  // Deep cosmic void gradient
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, c.height);
+  bgGrad.addColorStop(0.0, '#03010a');
+  bgGrad.addColorStop(0.35, '#09041c');
+  bgGrad.addColorStop(0.55, '#12082e');
+  bgGrad.addColorStop(0.75, '#080418');
+  bgGrad.addColorStop(1.0, '#030108');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  // Sweeping Milky Way & Cosmic Nebula Clouds
+  const nebulaClouds = [
+    { x: 420,  y: 360, rx: 520, ry: 180, col: 'rgba(155, 93, 229, 0.26)' },
+    { x: 1050, y: 310, rx: 640, ry: 210, col: 'rgba(255, 77, 141, 0.22)' },
+    { x: 1620, y: 390, rx: 480, ry: 170, col: 'rgba(0, 245, 212, 0.18)' },
+    { x: 760,  y: 440, rx: 550, ry: 150, col: 'rgba(255, 209, 102, 0.14)' },
+    { x: 1380, y: 260, rx: 420, ry: 160, col: 'rgba(114, 9, 183, 0.28)' },
+    { x: 220,  y: 280, rx: 390, ry: 140, col: 'rgba(76, 201, 240, 0.20)' }
+  ];
+  nebulaClouds.forEach((n) => {
+    ctx.save();
+    ctx.translate(n.x, n.y);
+    ctx.scale(1, n.ry / n.rx);
+    const g = ctx.createRadialGradient(0, 0, 10, 0, 0, n.rx);
+    g.addColorStop(0, n.col);
+    g.addColorStop(0.55, n.col.replace(/[\d.]+\)$/, '0.08)'));
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, n.rx, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // Crisp multi-colored starfield across the sky dome
+  const starColors = ['#ffffff', '#fff3b0', '#caf0f8', '#ffccd5', '#e0aaff', '#ffd166'];
+  for (let i = 0; i < 2200; i++) {
+    const x = Math.random() * c.width;
+    const y = Math.random() * c.height;
+    const r = Math.random() < 0.08 ? 1.8 + Math.random() * 1.8 : 0.5 + Math.random() * 1.1;
+    ctx.fillStyle = starColors[i % starColors.length];
+    ctx.globalAlpha = 0.45 + Math.random() * 0.55;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1.0;
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+const cosmicSkyDome = new THREE.Mesh(
+  new THREE.SphereGeometry(185, 64, 32),
+  new THREE.MeshBasicMaterial({ map: createCosmicSkyTexture(), side: THREE.BackSide, fog: false })
+);
+scene.add(cosmicSkyDome);
+
+// Studio Soundstage Cosmic Observatory Floor & Celestial Orbit Rings
 const floorGeo = new THREE.CylinderGeometry(52, 52, 0.8, 64);
 const floorMat = new THREE.MeshStandardMaterial({
-  color: 0x19122c,
-  roughness: 0.35,
-  metalness: 0.2
+  color: 0x0e0820,
+  roughness: 0.28,
+  metalness: 0.35
 });
 const studioFloor = new THREE.Mesh(floorGeo, floorMat);
 studioFloor.position.y = -3.6;
 studioFloor.receiveShadow = true;
 scene.add(studioFloor);
 
-// Decorative Golden Soundstage Ring
-const ringGeo = new THREE.RingGeometry(27.5, 28.2, 64);
+// Concentric Golden & Cyan Celestial Soundstage Rings
+const ringGeo = new THREE.RingGeometry(27.4, 28.3, 96);
 ringGeo.rotateX(-Math.PI / 2);
-const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd166, side: THREE.DoubleSide, transparent: true, opacity: 0.35 });
+const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd166, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
 const stageRing = new THREE.Mesh(ringGeo, ringMat);
 stageRing.position.y = -3.18;
 scene.add(stageRing);
 
-// Floating Atmospheric Dust Motes / Confetti Particles
-const particleCount = 260;
-const particleGeo = new THREE.BufferGeometry();
-const particlePos = new Float32Array(particleCount * 3);
-const particleCol = new Float32Array(particleCount * 3);
-const palette = [new THREE.Color(0xffd166), new THREE.Color(0xff5d8f), new THREE.Color(0x00f5d4), new THREE.Color(0xc77dff)];
-for (let i = 0; i < particleCount; i++) {
-  const angle = Math.random() * Math.PI * 2;
-  const rad = 16 + Math.random() * 24;
-  particlePos[i * 3] = Math.cos(angle) * rad;
-  particlePos[i * 3 + 1] = -2 + Math.random() * 14;
-  particlePos[i * 3 + 2] = Math.sin(angle) * rad;
-  const c = palette[i % palette.length];
-  particleCol[i * 3] = c.r;
-  particleCol[i * 3 + 1] = c.g;
-  particleCol[i * 3 + 2] = c.b;
-}
-particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
-particleGeo.setAttribute('color', new THREE.BufferAttribute(particleCol, 3));
-const particleMat = new THREE.PointsMaterial({ size: 0.28, vertexColors: true, transparent: true, opacity: 0.75 });
-const particles = new THREE.Points(particleGeo, particleMat);
-scene.add(particles);
+const outerCosmicRingGeo = new THREE.RingGeometry(33.5, 34.1, 96);
+outerCosmicRingGeo.rotateX(-Math.PI / 2);
+const outerCosmicRing = new THREE.Mesh(
+  outerCosmicRingGeo,
+  new THREE.MeshBasicMaterial({ color: 0x00f5d4, side: THREE.DoubleSide, transparent: true, opacity: 0.25 })
+);
+outerCosmicRing.position.y = -3.19;
+scene.add(outerCosmicRing);
+
+// 3D Blender Cosmic Floating Objects & Giant 3D Saturn Backdrop (populated from scene_props_3d.glb)
+const cosmicOrbitersGroup = new THREE.Group();
+scene.add(cosmicOrbitersGroup);
+const cosmicOrbiterItems = [];
+let saturnBackdropHero = null;
+let cosmicExoplanetHero = null;
 
 // Helper to create crisp Canvas 2D labels as Three.js textures
 function makeLabelTexture(text, bgColor = '#ffd166', textColor = '#161026', width = 512, height = 128, fontSize = 44) {
@@ -429,6 +490,47 @@ function makeLabelTexture(text, bgColor = '#ffd166', textColor = '#161026', widt
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, width / 2, height / 2);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// Helper to create multi-line ruled Detective Note cards for Act 6
+function makeDetectiveNotesTexture(lines, bgColor = '#fff6b3', borderColor = '#161026', width = 640, height = 260, fontSize = 34) {
+  const c = document.createElement('canvas');
+  c.width = width;
+  c.height = height;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = bgColor;
+  ctx.beginPath();
+  ctx.roundRect(6, 6, width - 12, height - 12, 18);
+  ctx.fill();
+
+  // Faint blue horizontal notebook ruling lines
+  ctx.strokeStyle = 'rgba(72, 149, 239, 0.28)';
+  ctx.lineWidth = 2;
+  const lineSpacing = Math.floor((height - 36) / Math.max(lines.length, 1));
+  for (let i = 0; i < lines.length; i++) {
+    const yLine = 34 + (i + 1) * lineSpacing - 8;
+    ctx.beginPath();
+    ctx.moveTo(18, yLine);
+    ctx.lineTo(width - 18, yLine);
+    ctx.stroke();
+  }
+
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = borderColor;
+  ctx.stroke();
+
+  ctx.font = `bold ${fontSize}px "Fredoka", "Comic Neue", sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  lines.forEach((item, idx) => {
+    ctx.fillStyle = item.color || '#161026';
+    const yPos = 24 + (idx + 0.5) * lineSpacing;
+    ctx.fillText(item.text, 28, yPos);
+  });
+
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -635,20 +737,9 @@ SCENES.forEach((sceneData, idx) => {
     diorama.add(doorFrame, doorInner, kateyPlaque, doorKnob);
 
     // Colorful sticky notes on right bedroom wall (matching Panel 1)
-    [
-      { x: 0.62, y: 2.65, col: '#d8f3dc', rot: 0.06 },
-      { x: 1.25, y: 2.72, col: '#fff3b0', rot: -0.05 },
-      { x: 0.98, y: 2.12, col: '#fff3b0', rot: 0.04 },
-      { x: 1.52, y: 2.18, col: '#ffccd5', rot: -0.07 }
-    ].forEach((sn) => {
-      const sticky = new THREE.Mesh(
-        new THREE.BoxGeometry(0.36, 0.36, 0.02),
-        new THREE.MeshStandardMaterial({ color: sn.col, roughness: 0.65 })
-      );
-      sticky.position.set(sn.x, sn.y, -1.29);
-      sticky.rotation.z = sn.rot;
-      diorama.add(sticky);
-    });
+    // Poly Haven CC0 3D Sticky Notes clusters pinned to the bedroom wall above the dresser
+    queuePropInstance('Prop_Sticky_Notes', diorama, 0.85, 2.55, -1.27, 1.15, 0.04);
+    queuePropInstance('Prop_Sticky_Notes', diorama, 1.48, 2.25, -1.27, 0.95, -0.08);
 
     // Lavender Bedroom Rug on floor in front of dresser
     const rug = new THREE.Mesh(
@@ -665,8 +756,9 @@ SCENES.forEach((sceneData, idx) => {
     // 2. Poly Haven CC0 Potted Zebra Haworthia Succulent on right corner of dresser
     queuePropInstance('Prop_Potted_Succulent', diorama, 1.52, 1.18, -0.72, 1.45, 0.4);
 
-    // 3. Poly Haven CC0 Open Binder Notebook on left corner of dresser
+    // 3. Poly Haven CC0 Open Binder Notebook & Stationery Cup on dresser top
     queuePropInstance('Prop_Binder_Notebook', diorama, 0.15, 1.20, -0.68, 1.35, 0.25);
+    queuePropInstance('Prop_Stationery_Cup', diorama, 1.12, 1.18, -0.74, 1.25, -0.2);
 
     // 4. Poly Haven CC0 Wooden Picture Frame hanging on bedroom wall
     queuePropInstance('Prop_Picture_Frame', diorama, -0.18, 2.55, -1.28, 1.25, 0);
@@ -681,26 +773,8 @@ SCENES.forEach((sceneData, idx) => {
     // 7. 3D Rigged & Animated Stylized Katey discovering her empty bedroom!
     createCharacterSlot('katey', idx, diorama, -1.85, 0.0, 0.42, 1.72, 0.28);
 
-    // 3D Magnifying Glass hovering & scanning the crime scene
-    const magGroup = new THREE.Group();
-    const rim = new THREE.Mesh(
-      new THREE.TorusGeometry(0.55, 0.08, 16, 36),
-      new THREE.MeshStandardMaterial({ color: 0xffd166, metalness: 0.8, roughness: 0.2 })
-    );
-    const lens = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.52, 0.52, 0.04, 32),
-      new THREE.MeshPhysicalMaterial({ color: 0x90e0ef, transparent: true, opacity: 0.4, roughness: 0.1 })
-    );
-    lens.rotation.x = Math.PI / 2;
-    const handle = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.07, 0.09, 0.9, 16),
-      new THREE.MeshStandardMaterial({ color: 0x5c3a21 })
-    );
-    handle.position.set(0.55, -0.55, 0);
-    handle.rotation.z = Math.PI / 4;
-    magGroup.add(rim, lens, handle);
-    magGroup.position.set(0.2, 2.6, 0.65);
-    diorama.add(magGroup);
+    // 8. Real Poly Haven CC0 3D Magnifying Glass (`Prop_Magnifying_Glass`) hovering & scanning the crime scene!
+    const magGroup = queuePropInstance('Prop_Magnifying_Glass', diorama, 0.2, 2.55, 0.68, 1.38, 0);
     animatedProps.magnifyingGlass = magGroup;
   } else if (idx === 1) {
     // ACT 2: 3D Detective Suspects Board + ALL 3 3D Rigged Suspects (Mom, Amy & Lizzy)!
@@ -871,27 +945,94 @@ SCENES.forEach((sceneData, idx) => {
     // 3D Amy (cleared by fingerprints!) standing on the right
     createCharacterSlot('amy', idx, diorama, 2.65, 0.0, 0.45, 1.65, -0.28);
   } else if (idx === 5) {
-    // ACT 6: Detective Notes & Giant 3D "Mom is Safe!" Rubber Stamp + 3D Mom & 3D Lizzy!
-    const pad = new THREE.Mesh(
-      new THREE.BoxGeometry(3.1, 4.3, 0.18),
-      new THREE.MeshStandardMaterial({ color: 0xffea85, roughness: 0.5 })
-    );
-    pad.position.set(-0.75, 2.3, -0.35);
-    diorama.add(pad);
+    // ACT 6: "6. But Interrogation!" — 3D Poly Haven Detective Clipboard, Multi-Line Notes, Writing Pen, Magnifying Glass & Slamming 3D Rubber Stamp!
+    // 1. Real Poly Haven CC0 3D Detective Clipboard & Lined Legal Pad (`Prop_Detective_Clipboard`)
+    queuePropInstance('Prop_Detective_Clipboard', diorama, -0.88, 2.38, -0.42, 1.02, 0);
 
+    // 2. Detective Notes Header & Itemized Behavior Comparison Cards (matching Panel 6!)
+    const notesHeader = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.75, 0.54),
+      new THREE.MeshBasicMaterial({
+        map: makeLabelTexture('📋 Detective notes:', '#ffd166', '#161026', 540, 110, 42),
+        transparent: true
+      })
+    );
+    notesHeader.position.set(-0.88, 4.02, -0.14);
+    diorama.add(notesHeader);
+
+    const momNoteCard = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.78, 0.68),
+      new THREE.MeshBasicMaterial({
+        map: makeDetectiveNotesTexture(
+          [
+            { text: 'Mom: Biting lip', color: '#161026' },
+            { text: '✓ Just nervous — Alibi checks out!', color: '#1b4332' }
+          ],
+          '#d8f3dc',
+          '#2d6a4f',
+          620,
+          150,
+          31
+        ),
+        transparent: true
+      })
+    );
+    momNoteCard.position.set(-0.88, 3.28, -0.12);
+    diorama.add(momNoteCard);
+
+    const lizzyNoteCard = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.85, 1.25),
+      new THREE.MeshBasicMaterial({
+        map: makeDetectiveNotesTexture(
+          [
+            { text: 'Lizzy: Scared,', color: '#9d0208' },
+            { text: 'answering slowly, and thinking long,', color: '#161026' },
+            { text: 'looking down in shame, mumbling.', color: '#6a040f' }
+          ],
+          '#fff3b0',
+          '#d62828',
+          660,
+          280,
+          30
+        ),
+        transparent: true
+      })
+    );
+    lizzyNoteCard.position.set(-0.88, 2.18, -0.11);
+    diorama.add(lizzyNoteCard);
+    animatedProps.lizzyNoteCard = lizzyNoteCard;
+
+    // 3. Stamped "Mom is Safe!" Impression Box at bottom of Legal Pad
     const stampBanner = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.9, 0.92),
+      new THREE.PlaneGeometry(2.82, 0.88),
       new THREE.MeshBasicMaterial({
         map: makeLabelTexture('Mom is Safe!', '#fff3b0', '#111111', 560, 150, 58),
         transparent: true
       })
     );
-    stampBanner.position.set(-0.75, 1.05, -0.18);
+    stampBanner.position.set(-0.88, 0.96, -0.09);
     stampBanner.rotation.z = 0.08;
     diorama.add(stampBanner);
     animatedProps.momSafeStamp = stampBanner;
 
-    // 3D Mom (stamped Safe!) and 3D Lizzy (Nervous & Mumbling!) side-by-side
+    // 4. Real 3D Wooden & Brass Rubber Stamp (`Prop_Rubber_Stamp`) that physically slams down onto "Mom is Safe!"
+    const rubberStamp = queuePropInstance('Prop_Rubber_Stamp', diorama, -0.88, 0.96, 0.85, 0.88, 0);
+    rubberStamp.rotation.z = 0.08;
+    animatedProps.rubberStampMesh = rubberStamp;
+
+    // 5. Real Poly Haven CC0 3D Executive Pen (`Prop_Detective_Pen`) actively writing & checking off the notes!
+    const detPen = queuePropInstance('Prop_Detective_Pen', diorama, -0.15, 3.15, 0.12, 1.15, 0);
+    animatedProps.detectivePen = detPen;
+
+    // 6. Real Poly Haven CC0 3D Magnifying Glass (`Prop_Magnifying_Glass`) inspecting Lizzy's suspicious notes!
+    const detMag = queuePropInstance('Prop_Magnifying_Glass', diorama, -0.55, 2.18, 0.32, 1.18, 0);
+    animatedProps.detectiveMagnifier = detMag;
+
+    // 7. Poly Haven 3D Stationery Cup & Sticky Notes on the Detective Stand
+    queuePropInstance('Prop_Stationery_Cup', diorama, -2.25, 0.0, 0.35, 1.65, 0.3);
+    queuePropInstance('Prop_Sticky_Notes', diorama, 0.38, 3.85, -0.35, 1.05, -0.12);
+
+    // 8. 3D Mom (stamped Safe!) and 3D Lizzy (Nervous & Mumbling!) side-by-side
     createCharacterSlot('mom', idx, diorama, 1.15, 0.0, 0.15, 1.68, -0.12);
     createCharacterSlot('lizzy', idx, diorama, 2.25, 0.0, 0.42, 1.72, -0.24);
   } else if (idx === 6) {
@@ -1009,7 +1150,7 @@ CHARACTER_GLB_SPECS.forEach(({ key, url, clipName }) => {
   });
 });
 
-// Load 3D Bedroom & Interrogation Props Library (./scene_props_3d.glb)
+// Load 3D Bedroom, Interrogation, Detective & Cosmic Props Library (./scene_props_3d.glb)
 gltfLoader.load('./scene_props_3d.glb', (gltf) => {
   const propTemplates = new Map();
   gltf.scene.traverse((node) => {
@@ -1025,12 +1166,110 @@ gltfLoader.load('./scene_props_3d.glb', (gltf) => {
     clone.position.set(0, 0, 0);
     clone.traverse((child) => {
       if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
+        const matName = (child.material && child.material.name) || '';
+        if (matName.includes('lense')) {
+          child.material = child.material.clone();
+          child.material.transparent = true;
+          child.material.opacity = 0.34;
+          child.material.depthWrite = false;
+          child.castShadow = false;
+          child.receiveShadow = false;
+        } else {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
       }
     });
     holder.add(clone);
   });
+
+  // 1. Instantiate Colossal 3D Saturn Backdrop (`Prop_Saturn_Backdrop`) in the Cosmic Round-Robin Sky!
+  const saturnTemplate = propTemplates.get('Prop_Saturn_Backdrop');
+  if (saturnTemplate) {
+    saturnBackdropHero = saturnTemplate.clone(true);
+    saturnBackdropHero.scale.set(4.5, 4.5, 4.5);
+    saturnBackdropHero.position.set(12, 9.2, -16);
+    saturnBackdropHero.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = false;
+        child.receiveShadow = false;
+        child.frustumCulled = false;
+        if (child.material) {
+          child.material = child.material.clone();
+          if ((child.material.name || '').includes('Rings')) {
+            child.material.transparent = true;
+            child.material.side = THREE.DoubleSide;
+            child.material.depthWrite = false;
+          }
+        }
+      }
+    });
+    scene.add(saturnBackdropHero);
+  }
+
+  // 2. Instantiate Companion 3D Ringed Exoplanet (`Prop_Cosmic_Planet`) in the upper-left cosmic sky
+  const exoTemplate = propTemplates.get('Prop_Cosmic_Planet');
+  if (exoTemplate) {
+    cosmicExoplanetHero = exoTemplate.clone(true);
+    cosmicExoplanetHero.scale.set(5.2, 5.2, 5.2);
+    cosmicExoplanetHero.position.set(-18, 11.5, -14);
+    cosmicExoplanetHero.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = false;
+        child.receiveShadow = false;
+      }
+    });
+    scene.add(cosmicExoplanetHero);
+  }
+
+  // 3. Replace Floating 2D Particle Sprites with 160 Real 3D Blender Cosmic Meshes!
+  const cosmicPropKeys = [
+    'Prop_Cosmic_Star',
+    'Prop_Cosmic_Sparkle',
+    'Prop_Cosmic_Crystal',
+    'Prop_Cosmic_Asteroid',
+    'Prop_Cosmic_Planet'
+  ].filter((k) => propTemplates.has(k));
+
+  if (cosmicPropKeys.length > 0) {
+    const totalOrbiters = 160;
+    for (let i = 0; i < totalOrbiters; i++) {
+      const key = cosmicPropKeys[i % cosmicPropKeys.length];
+      const tpl = propTemplates.get(key);
+      const inst = tpl.clone(true);
+      const angle = (i / totalOrbiters) * Math.PI * 2 + (Math.random() - 0.5) * 0.25;
+      const radius = 15 + Math.random() * 32;
+      const baseY = -2.2 + Math.random() * 16.5;
+      const baseScale = key === 'Prop_Cosmic_Planet'
+        ? 0.55 + Math.random() * 0.65
+        : 0.45 + Math.random() * 0.85;
+
+      inst.position.set(Math.cos(angle) * radius, baseY, Math.sin(angle) * radius);
+      inst.scale.set(baseScale, baseScale, baseScale);
+      inst.rotation.set(
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2
+      );
+      inst.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = false;
+          child.receiveShadow = false;
+        }
+      });
+      cosmicOrbitersGroup.add(inst);
+      cosmicOrbiterItems.push({
+        mesh: inst,
+        baseY,
+        bobSpeed: 0.8 + Math.random() * 1.6,
+        bobPhase: Math.random() * Math.PI * 2,
+        bobAmp: 0.18 + Math.random() * 0.35,
+        rotSpeedX: (Math.random() - 0.5) * 1.4,
+        rotSpeedY: (Math.random() - 0.5) * 1.8,
+        rotSpeedZ: (Math.random() - 0.5) * 1.2
+      });
+    }
+  }
 });
 
 // ============================================================================
@@ -1549,10 +1788,61 @@ function animate() {
   if (animatedProps.laserBar) {
     animatedProps.laserBar.position.y = 2.15 + Math.sin(elapsed * 2.6) * 0.95;
   }
-  if (animatedProps.momSafeStamp) {
-    const pulse = 1 + Math.sin(elapsed * 4) * 0.04;
-    animatedProps.momSafeStamp.scale.set(pulse, pulse, 1);
+
+  // Act 6: 3D Rubber Stamp Slamming Down, 3D Detective Pen Writing, & 3D Magnifying Glass Scanning Notes!
+  if (animatedProps.rubberStampMesh && animatedProps.momSafeStamp) {
+    const cycle = (elapsed * 0.42) % 1.0; // ~2.4s stamp cycle
+    let stampZ = 0.92;
+    let stampY = 1.32;
+    let stampRotX = -0.22;
+    let bannerScale = 1.0;
+
+    if (cycle < 0.18) {
+      // Wind-up & cock back before slamming down
+      const t = cycle / 0.18;
+      stampZ = 0.92 + Math.sin(t * Math.PI * 0.5) * 0.45;
+      stampY = 1.32 - t * 0.36;
+      stampRotX = -0.22 + t * 0.22;
+    } else if (cycle < 0.28) {
+      // Rapid slam down onto the "Mom is Safe!" box!
+      const t = (cycle - 0.18) / 0.10;
+      const easeIn = t * t;
+      stampZ = 1.37 * (1 - easeIn) + (-0.04) * easeIn;
+      stampY = 0.96;
+      stampRotX = 0;
+    } else if (cycle < 0.44) {
+      // Pressed against the pad — "Mom is Safe!" ink impression pops!
+      const t = (cycle - 0.28) / 0.16;
+      stampZ = -0.04 + t * 0.08;
+      stampY = 0.96;
+      stampRotX = 0;
+      bannerScale = 1.14 - t * 0.10;
+    } else {
+      // Lift back up and hover clear so the stamped "Mom is Safe!" text is easy to read
+      const t = (cycle - 0.44) / 0.56;
+      const smooth = Math.sin(t * Math.PI * 0.5);
+      stampZ = 0.04 + smooth * 0.88;
+      stampY = 0.96 + smooth * 0.36;
+      stampRotX = -smooth * 0.22;
+      bannerScale = 1.0 + Math.sin(elapsed * 5) * 0.03;
+    }
+
+    animatedProps.rubberStampMesh.position.set(-0.88, stampY, stampZ);
+    animatedProps.rubberStampMesh.rotation.x = stampRotX;
+    animatedProps.momSafeStamp.scale.set(bannerScale, bannerScale, 1);
   }
+  if (animatedProps.detectivePen) {
+    animatedProps.detectivePen.position.x = -0.85 + Math.sin(elapsed * 3.6) * 0.82;
+    animatedProps.detectivePen.position.y = 2.75 + Math.cos(elapsed * 1.4) * 0.62;
+    animatedProps.detectivePen.position.z = 0.10 + Math.abs(Math.sin(elapsed * 7.2)) * 0.06;
+    animatedProps.detectivePen.rotation.z = Math.sin(elapsed * 7.2) * 0.12;
+  }
+  if (animatedProps.detectiveMagnifier) {
+    animatedProps.detectiveMagnifier.position.x = -0.55 + Math.cos(elapsed * 1.5) * 0.65;
+    animatedProps.detectiveMagnifier.position.y = 2.18 + Math.sin(elapsed * 2.1) * 0.36;
+    animatedProps.detectiveMagnifier.rotation.z = Math.sin(elapsed * 1.3) * 0.18;
+  }
+
   if (animatedProps.guiltyBanner) {
     const s = 1 + Math.sin(elapsed * 5) * 0.05;
     animatedProps.guiltyBanner.scale.set(s, s, 1);
@@ -1563,8 +1853,42 @@ function animate() {
     animatedProps.bffHeart.rotation.y = Math.sin(elapsed * 1.2) * 0.45;
   }
 
-  // Rotate atmospheric particles gently
-  particles.rotation.y = elapsed * 0.03;
+  // Position Colossal 3D Saturn Backdrop & Companion Exoplanet in the Cosmic Sky behind the active round-robin card!
+  const fwdX = -Math.sin(angle);
+  const fwdZ = -Math.cos(angle);
+  const rightX = Math.cos(angle);
+  const rightZ = -Math.sin(angle);
+
+  if (saturnBackdropHero) {
+    const satTargetX = stageCenter.x + fwdX * 32 + rightX * (8.2 + Math.sin(elapsed * 0.22) * 2.0);
+    const satTargetY = 6.2 + Math.cos(elapsed * 0.28) * 0.55;
+    const satTargetZ = stageCenter.z + fwdZ * 32 + rightZ * (8.2 + Math.sin(elapsed * 0.22) * 2.0);
+    saturnBackdropHero.position.x += (satTargetX - saturnBackdropHero.position.x) * 0.05;
+    saturnBackdropHero.position.y += (satTargetY - saturnBackdropHero.position.y) * 0.05;
+    saturnBackdropHero.position.z += (satTargetZ - saturnBackdropHero.position.z) * 0.05;
+    saturnBackdropHero.rotation.y = angle + 0.35 + Math.sin(elapsed * 0.18) * 0.15;
+  }
+
+  if (cosmicExoplanetHero) {
+    const exoTargetX = stageCenter.x + fwdX * 36 - rightX * (10.5 + Math.cos(elapsed * 0.2) * 1.8);
+    const exoTargetY = 7.4 + Math.sin(elapsed * 0.32) * 0.6;
+    const exoTargetZ = stageCenter.z + fwdZ * 36 - rightZ * (10.5 + Math.cos(elapsed * 0.2) * 1.8);
+    cosmicExoplanetHero.position.x += (exoTargetX - cosmicExoplanetHero.position.x) * 0.05;
+    cosmicExoplanetHero.position.y += (exoTargetY - cosmicExoplanetHero.position.y) * 0.05;
+    cosmicExoplanetHero.position.z += (exoTargetZ - cosmicExoplanetHero.position.z) * 0.05;
+    cosmicExoplanetHero.rotation.y = elapsed * 0.25;
+  }
+
+  // Slowly rotate the Cosmic Nebula Sky Dome & 3D Blender Cosmic Orbiters
+  cosmicSkyDome.rotation.y = elapsed * 0.008;
+  cosmicOrbitersGroup.rotation.y = elapsed * 0.028;
+  for (let i = 0; i < cosmicOrbiterItems.length; i++) {
+    const item = cosmicOrbiterItems[i];
+    item.mesh.position.y = item.baseY + Math.sin(elapsed * item.bobSpeed + item.bobPhase) * item.bobAmp;
+    item.mesh.rotation.x += item.rotSpeedX * dt;
+    item.mesh.rotation.y += item.rotSpeedY * dt;
+    item.mesh.rotation.z += item.rotSpeedZ * dt;
+  }
 
   renderer.render(scene, camera);
 }

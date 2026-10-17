@@ -11,7 +11,8 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "./vendor/three.module.js"
+        "three": "./vendor/three.module.js",
+        "three/addons/": "./vendor/addons/"
       }
     }
   </script>
@@ -35,6 +36,9 @@
     </div>
 
     <div class="hud-actions">
+      <button id="btn-lizzy-closeup" class="hud-btn" title="Zoom in on the 3D Rigged & Animated Stylized Lizzy Model">
+        <span>🧍‍♀️</span> <span id="lizzy-closeup-label">3D Lizzy Close-Up</span>
+      </button>
       <button id="btn-camera-mode" class="hud-btn" title="Toggle between Cinematic Movie Camera and Free Orbit Inspection">
         <span>🎥</span> <span id="camera-mode-label">Cinematic Cam</span>
       </button>

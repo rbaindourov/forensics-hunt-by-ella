@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 // ============================================================================
 // 1. SCENE SCRIPT, TIMELINE & METADATA (ALL 8 PANELS WITH APPLIED NOTES)
@@ -495,7 +497,24 @@ function makeFingerprintCardMesh(label, isCrimeScene = false) {
 const STAGE_RADIUS = 28;
 const stageGroups = [];
 const animatedProps = {};
+const lizzyStageSlots = new Map(); // sceneIdx -> THREE.Group hosting 3D Lizzy
+const lizzyMixers = [];
 const textureLoader = new THREE.TextureLoader();
+
+function createLizzySlot(sceneIdx, parentGroup, x, y, z, scale = 1.75) {
+  const slot = new THREE.Group();
+  slot.position.set(x, y, z);
+  slot.scale.set(scale, scale, scale);
+
+  // Dedicated warm front-key & rim light so 3D Lizzy's sculpted face, hair, and outfit shine
+  const charLight = new THREE.PointLight(0xfff5e4, 2.4, 9);
+  charLight.position.set(0.3, 1.35, 1.45);
+  slot.add(charLight);
+
+  parentGroup.add(slot);
+  lizzyStageSlots.set(sceneIdx, slot);
+  return slot;
+}
 
 SCENES.forEach((sceneData, idx) => {
   const angle = (idx / SCENES.length) * Math.PI * 2;
@@ -635,17 +654,17 @@ SCENES.forEach((sceneData, idx) => {
     diorama.add(magGroup);
     animatedProps.magnifyingGlass = magGroup;
   } else if (idx === 1) {
-    // ACT 2: 3D Detective Suspects Board + Bouncing Red Arrow
+    // ACT 2: 3D Detective Suspects Board + 3D Animated Lizzy (Suspect #3)
     const board = new THREE.Mesh(
-      new THREE.BoxGeometry(3.6, 4.4, 0.25),
+      new THREE.BoxGeometry(3.2, 4.4, 0.25),
       new THREE.MeshStandardMaterial({ color: 0xf3e5ab, roughness: 0.6 })
     );
-    board.position.set(0, 2.3, -0.5);
+    board.position.set(-0.65, 2.3, -0.5);
     const woodBorder = new THREE.Mesh(
-      new THREE.BoxGeometry(3.9, 4.7, 0.2),
+      new THREE.BoxGeometry(3.5, 4.7, 0.2),
       new THREE.MeshStandardMaterial({ color: 0x7f5539 })
     );
-    woodBorder.position.set(0, 2.3, -0.55);
+    woodBorder.position.set(-0.65, 2.3, -0.55);
     diorama.add(woodBorder, board);
 
     const suspects = [
@@ -656,10 +675,10 @@ SCENES.forEach((sceneData, idx) => {
     ];
     suspects.forEach((s) => {
       const card = new THREE.Mesh(
-        new THREE.PlaneGeometry(3.1, 0.72),
+        new THREE.PlaneGeometry(2.85, 0.72),
         new THREE.MeshBasicMaterial({ map: makeLabelTexture(s.name, s.col, '#111', 512, 120, 42), transparent: true })
       );
-      card.position.set(0, s.y, -0.35);
+      card.position.set(-0.65, s.y, -0.35);
       diorama.add(card);
     });
 
@@ -676,50 +695,60 @@ SCENES.forEach((sceneData, idx) => {
     );
     shaft.position.y = 0.6;
     arrowGroup.add(cone, shaft);
-    arrowGroup.position.set(0.8, 5.1, -0.2);
+    arrowGroup.position.set(0.1, 5.1, -0.2);
     arrowGroup.rotation.z = -0.25;
     diorama.add(arrowGroup);
     animatedProps.suspectArrow = arrowGroup;
+
+    // 3D Rigged & Animated Stylized Lizzy beside Suspect Board
+    createLizzySlot(idx, diorama, 1.95, 0.0, 0.35, 1.75);
   } else if (idx === 2) {
-    // ACT 3: 3D Interrogation Spotlights on Mom, Amy, and Lizzy (No "guilty" arrow!)
+    // ACT 3: 3D Interrogation Spotlights on Mom, Amy, and 3D Animated Stylized Lizzy!
     const pedColors = [0xe56b6f, 0xf4a261, 0x6d597a];
     const labels = ["Katey's Mom\n(biting lip)", 'Amy\n(nervous smile)', 'Lizzy\n(scared, mumbling)'];
     animatedProps.interrogationCones = [];
 
     labels.forEach((lbl, i) => {
-      const xPos = (i - 1) * 1.45;
+      const xPos = (i - 1) * 1.48;
+      const isLizzy = i === 2;
+      const pedHeight = isLizzy ? 0.36 : 1.3;
       const stand = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.52, 0.6, 1.3, 24),
+        new THREE.CylinderGeometry(0.55, 0.64, pedHeight, 24),
         new THREE.MeshStandardMaterial({ color: pedColors[i] })
       );
-      stand.position.set(xPos, 0.65, 0);
+      stand.position.set(xPos, pedHeight * 0.5, 0);
       diorama.add(stand);
 
       const badge = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.35, 0.65),
+        new THREE.PlaneGeometry(1.38, 0.62),
         new THREE.MeshBasicMaterial({
-          map: makeLabelTexture(lbl.split('\n')[0], '#fff', '#111', 380, 120, 38),
+          map: makeLabelTexture(lbl.split('\n')[0], isLizzy ? '#ffd166' : '#fff', '#111', 380, 120, 38),
           transparent: true
         })
       );
-      badge.position.set(xPos, 1.65, 0.35);
+      badge.position.set(xPos, isLizzy ? 4.15 : 1.65, 0.35);
       diorama.add(badge);
 
       // Volumetric Spotlight Cone
       const coneMat = new THREE.MeshBasicMaterial({
         color: 0xffe66d,
         transparent: true,
-        opacity: 0.22,
+        opacity: isLizzy ? 0.16 : 0.22,
         side: THREE.DoubleSide,
         depthWrite: false
       });
-      const lightCone = new THREE.Mesh(new THREE.ConeGeometry(0.95, 4.2, 24, 1, true), coneMat);
-      lightCone.position.set(xPos, 3.2, 0);
+      const lightCone = new THREE.Mesh(new THREE.ConeGeometry(1.05, 4.5, 24, 1, true), coneMat);
+      lightCone.position.set(xPos, 3.35, 0);
       diorama.add(lightCone);
       animatedProps.interrogationCones.push(lightCone);
+
+      if (isLizzy) {
+        // Place full 3D Rigged & Animated Stylized Lizzy directly on the 3rd Interrogation Pedestal!
+        createLizzySlot(idx, diorama, xPos, pedHeight, 0.08, 1.85);
+      }
     });
   } else if (idx === 3) {
-    // ACT 4: 3D Pop-Up Speech Bubbles ("But, What did they say!")
+    // ACT 4: 3D Pop-Up Speech Bubbles ("But, What did they say!") + 3D Animated Lizzy
     animatedProps.speechBubbles = [];
     const lines = [
       { who: 'Mom: "Emergency meeting at work!"', y: 3.7, col: '#ffffff' },
@@ -728,16 +757,18 @@ SCENES.forEach((sceneData, idx) => {
     ];
     lines.forEach((item, i) => {
       const bubble = new THREE.Mesh(
-        new THREE.PlaneGeometry(3.8, 0.95),
+        new THREE.PlaneGeometry(3.4, 0.92),
         new THREE.MeshBasicMaterial({
           map: makeLabelTexture(item.who, item.col, '#111', 680, 140, 34),
           transparent: true
         })
       );
-      bubble.position.set(0, item.y, 0.1 * i);
+      bubble.position.set(-0.55, item.y, 0.1 * i);
       diorama.add(bubble);
       animatedProps.speechBubbles.push(bubble);
     });
+
+    createLizzySlot(idx, diorama, 2.05, 0.0, 0.4, 1.78);
   } else if (idx === 4) {
     // ACT 5: 3D Forensics Fingerprint Scanner (Crime Scene vs. Mom, Amy, Lizzy separately!)
     const crimePrint = makeFingerprintCardMesh('', true);
@@ -774,35 +805,30 @@ SCENES.forEach((sceneData, idx) => {
     diorama.add(laserBar);
     animatedProps.laserBar = laserBar;
   } else if (idx === 5) {
-    // ACT 6: Detective Notes & Giant 3D "Mom is Safe!" Rubber Stamp
+    // ACT 6: Detective Notes & Giant 3D "Mom is Safe!" Rubber Stamp + 3D Animated Lizzy
     const pad = new THREE.Mesh(
-      new THREE.BoxGeometry(3.6, 4.3, 0.18),
+      new THREE.BoxGeometry(3.2, 4.3, 0.18),
       new THREE.MeshStandardMaterial({ color: 0xffea85, roughness: 0.5 })
     );
-    pad.position.set(0, 2.3, -0.3);
+    pad.position.set(-0.65, 2.3, -0.3);
     diorama.add(pad);
 
     const stampBanner = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.3, 0.95),
+      new THREE.PlaneGeometry(3.0, 0.92),
       new THREE.MeshBasicMaterial({
         map: makeLabelTexture('Mom is Safe!', '#fff3b0', '#111111', 560, 150, 58),
         transparent: true
       })
     );
-    stampBanner.position.set(0, 1.05, -0.15);
+    stampBanner.position.set(-0.65, 1.05, -0.15);
     stampBanner.rotation.z = 0.08;
     diorama.add(stampBanner);
     animatedProps.momSafeStamp = stampBanner;
+
+    createLizzySlot(idx, diorama, 1.95, 0.0, 0.35, 1.78);
   } else if (idx === 6) {
-    // ACT 7: "7. She Was GUILTY!" — Short-Haired Lizzy on the Spotlight Podium
-    const lizzyTex = textureLoader.load('./sprites/lizzy_short_hair.png');
-    lizzyTex.colorSpace = THREE.SRGBColorSpace;
-    const lizzyStandee = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.4, 3.8),
-      new THREE.MeshBasicMaterial({ map: lizzyTex, transparent: true })
-    );
-    lizzyStandee.position.set(0, 2.1, 0.2);
-    diorama.add(lizzyStandee);
+    // ACT 7: "7. She Was GUILTY!" — Full 3D Rigged & Animated Stylized Lizzy on the Spotlight Podium!
+    const lizzyHeroSlot = createLizzySlot(idx, diorama, 0.0, 0.0, 0.25, 2.15);
 
     const guiltyBanner = new THREE.Mesh(
       new THREE.PlaneGeometry(3.8, 0.95),
@@ -811,10 +837,10 @@ SCENES.forEach((sceneData, idx) => {
         transparent: true
       })
     );
-    guiltyBanner.position.set(0, 4.35, 0.1);
+    guiltyBanner.position.set(0, 4.45, 0.1);
     diorama.add(guiltyBanner);
     animatedProps.guiltyBanner = guiltyBanner;
-    animatedProps.lizzyStandee = lizzyStandee;
+    animatedProps.lizzyStandee = lizzyHeroSlot;
   } else if (idx === 7) {
     // ACT 8: "8. BFF — by Ella" — 3D Sculpted Extruded Heart, Spinning Gold Star & Credit
     const heartShape = new THREE.Shape();
@@ -857,6 +883,40 @@ SCENES.forEach((sceneData, idx) => {
   }
 });
 
+// Load Blender Studio Stylized Female 3D Lizzy Model (./lizzy_3d.glb) & Skeletal Interrogation Loop
+const gltfLoader = new GLTFLoader();
+gltfLoader.load('./lizzy_3d.glb', (gltf) => {
+  const baseModel = gltf.scene;
+  const clips = gltf.animations || [];
+
+  lizzyStageSlots.forEach((slotGroup) => {
+    const cloned = SkeletonUtils.clone(baseModel);
+    cloned.traverse((node) => {
+      if (node.isMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+        node.frustumCulled = false;
+        if (node.material) {
+          node.material = node.material.clone();
+          // Ensure Mat_Studio_CropTop uses its pure charcoal-plum Base Color without multiplying Col_Skin
+          if (node.material.name && node.material.name.includes('CropTop')) {
+            node.material.vertexColors = false;
+          }
+          node.material.needsUpdate = true;
+        }
+      }
+    });
+    slotGroup.add(cloned);
+
+    if (clips.length > 0) {
+      const mixer = new THREE.AnimationMixer(cloned);
+      const action = mixer.clipAction(clips[0]);
+      action.play();
+      lizzyMixers.push(mixer);
+    }
+  });
+});
+
 // ============================================================================
 // 5. MOVIE PLAYBACK, CAMERA CHOREOGRAPHY & VOICEOVER CONTROLLER
 // ============================================================================
@@ -868,6 +928,7 @@ audioPlayer.preload = 'auto';
 let currentSceneIdx = 0;
 let isMoviePlaying = false;
 let cameraMode = 'cinematic'; // 'cinematic' or 'orbit'
+let lizzyCloseupMode = false;
 let userOrbitAngle = 0;
 let sceneElapsed = 0;
 let cameraShakeIntensity = 0;
@@ -893,6 +954,8 @@ const voiceVolInput = document.getElementById('voice-volume');
 const musicVolInput = document.getElementById('music-volume');
 const btnCameraMode = document.getElementById('btn-camera-mode');
 const cameraModeLabel = document.getElementById('camera-mode-label');
+const btnLizzyCloseup = document.getElementById('btn-lizzy-closeup');
+const lizzyCloseupLabel = document.getElementById('lizzy-closeup-label');
 
 // Modals
 const voiceStudioModal = document.getElementById('voice-studio-modal');
@@ -1165,6 +1228,20 @@ btnCameraMode.addEventListener('click', () => {
   cameraModeLabel.textContent = cameraMode === 'cinematic' ? 'Cinematic Cam' : 'Orbit View';
 });
 
+if (btnLizzyCloseup) {
+  btnLizzyCloseup.addEventListener('click', () => {
+    lizzyCloseupMode = !lizzyCloseupMode;
+    lizzyCloseupLabel.textContent = lizzyCloseupMode ? 'Full Stage View' : '3D Lizzy Close-Up';
+    btnLizzyCloseup.classList.toggle('hud-btn-accent', lizzyCloseupMode);
+    if (lizzyCloseupMode) {
+      startOverlay.classList.add('hidden');
+      if (!lizzyStageSlots.has(currentSceneIdx)) {
+        goToScene(2, isMoviePlaying); // Jump to Act 3 (Interrogation) where 3D Lizzy is under the spotlight
+      }
+    }
+  });
+}
+
 document.getElementById('btn-voice-studio').addEventListener('click', () => {
   renderVoiceStudioList();
   voiceStudioModal.showModal();
@@ -1230,6 +1307,7 @@ const currentCamPos = new THREE.Vector3(0, 6, 42);
 const currentLookAt = new THREE.Vector3(0, 0.5, 28);
 const targetCamPos = new THREE.Vector3();
 const targetLookAt = new THREE.Vector3();
+const lizzyWorldPos = new THREE.Vector3();
 
 function animate() {
   requestAnimationFrame(animate);
@@ -1237,25 +1315,46 @@ function animate() {
   const elapsed = clock.getElapsedTime();
   sceneElapsed += dt;
 
+  // Advance all 3D Lizzy skeletal AnimationMixers (120-frame Nervous Interrogation loop)
+  for (let i = 0; i < lizzyMixers.length; i++) {
+    lizzyMixers[i].update(dt);
+  }
+
   // Target stage position & angle
   const angle = (currentSceneIdx / SCENES.length) * Math.PI * 2;
   const stageCenter = stageGroups[currentSceneIdx].position;
+  const activeLizzySlot = lizzyStageSlots.get(currentSceneIdx);
 
-  // Subtle cinematic sway & dolly zoom during each scene
-  const dollyZoom = 11.2 - Math.min(sceneElapsed * 0.12, 1.8);
-  const swayAngle = angle + (cameraMode === 'orbit' ? elapsed * 0.35 + userOrbitAngle : Math.sin(elapsed * 0.55) * 0.06 + userOrbitAngle * 0.3);
+  if (lizzyCloseupMode && activeLizzySlot) {
+    activeLizzySlot.getWorldPosition(lizzyWorldPos);
+    const charScale = activeLizzySlot.scale.y;
+    const lookY = lizzyWorldPos.y + charScale * 1.05;
+    const closeDist = charScale * 2.05;
+    const orbitYaw = angle + userOrbitAngle + (cameraMode === 'orbit' ? elapsed * 0.45 : Math.sin(elapsed * 0.6) * 0.08);
 
-  targetCamPos.set(
-    stageCenter.x + Math.sin(swayAngle) * dollyZoom,
-    0.85 + Math.sin(elapsed * 0.8) * 0.18,
-    stageCenter.z + Math.cos(swayAngle) * dollyZoom
-  );
+    targetCamPos.set(
+      lizzyWorldPos.x + Math.sin(orbitYaw) * closeDist,
+      lookY + 0.15,
+      lizzyWorldPos.z + Math.cos(orbitYaw) * closeDist
+    );
+    targetLookAt.set(lizzyWorldPos.x, lookY, lizzyWorldPos.z);
+  } else {
+    // Subtle cinematic sway & dolly zoom during each scene
+    const dollyZoom = 11.2 - Math.min(sceneElapsed * 0.12, 1.8);
+    const swayAngle = angle + (cameraMode === 'orbit' ? elapsed * 0.35 + userOrbitAngle : Math.sin(elapsed * 0.55) * 0.06 + userOrbitAngle * 0.3);
 
-  targetLookAt.set(
-    stageCenter.x,
-    0.35,
-    stageCenter.z
-  );
+    targetCamPos.set(
+      stageCenter.x + Math.sin(swayAngle) * dollyZoom,
+      0.85 + Math.sin(elapsed * 0.8) * 0.18,
+      stageCenter.z + Math.cos(swayAngle) * dollyZoom
+    );
+
+    targetLookAt.set(
+      stageCenter.x,
+      0.35,
+      stageCenter.z
+    );
+  }
 
   // Camera shake decay (used when "Mom is Safe!" stamp slams down)
   if (cameraShakeIntensity > 0.001) {
@@ -1264,8 +1363,8 @@ function animate() {
     cameraShakeIntensity *= 0.88;
   }
 
-  currentCamPos.lerp(targetCamPos, 0.055);
-  currentLookAt.lerp(targetLookAt, 0.07);
+  currentCamPos.lerp(targetCamPos, 0.065);
+  currentLookAt.lerp(targetLookAt, 0.08);
   camera.position.copy(currentCamPos);
   camera.lookAt(currentLookAt);
 
@@ -1298,7 +1397,7 @@ function animate() {
   }
   if (animatedProps.speechBubbles) {
     animatedProps.speechBubbles.forEach((b, i) => {
-      b.position.x = Math.sin(elapsed * 2 + i) * 0.08;
+      b.position.x = -0.55 + Math.sin(elapsed * 2 + i) * 0.08;
       const scale = 1 + Math.sin(elapsed * 3 + i * 1.5) * 0.03;
       b.scale.set(scale, scale, 1);
     });

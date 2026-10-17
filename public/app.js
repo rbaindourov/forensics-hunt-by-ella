@@ -1109,73 +1109,265 @@ const loaderStatusText = document.getElementById('loader-status-text');
 const loaderBarFill = document.getElementById('loader-bar-fill');
 const loaderSubtext = document.getElementById('loader-subtext');
 
-// Track individual asset progress across all 5 models
+// Track individual asset progress across all 5 models (including exact uncompressed byte sizes for Brotli streams where Content-Length is omitted)
+const resolveAssetUrl = (filename) => new URL(filename, import.meta.url).href;
 const ASSET_SPECS = [
-  { id: 'katey', label: 'Katey (Protagonist)', url: './katey_3d.glb', clipName: 'Katey_Room_Discovery', type: 'character' },
-  { id: 'mom',   label: "Katey's Mom", url: './mom_3d.glb',   clipName: 'Mom_Biting_Lip_Interrogation', type: 'character' },
-  { id: 'amy',   label: 'Amy (Friend ✌️)', url: './amy_3d.glb',   clipName: 'Amy_Forced_Peace_Interrogation', type: 'character' },
-  { id: 'lizzy', label: 'Lizzy (Sister)', url: './lizzy_3d.glb', clipName: 'Lizzy_Nervous_Interrogation', type: 'character' },
-  { id: 'props', label: '3D Saturn & Scene Props', url: './scene_props_3d.glb', clipName: null, type: 'props' }
+  { id: 'katey', label: 'Katey (Protagonist)',     url: resolveAssetUrl('./katey_3d.glb'),       clipName: 'Katey_Room_Discovery',          type: 'character', expectedBytes: 8002912 },
+  { id: 'mom',   label: "Katey's Mom",             url: resolveAssetUrl('./mom_3d.glb'),         clipName: 'Mom_Biting_Lip_Interrogation',  type: 'character', expectedBytes: 8066276 },
+  { id: 'amy',   label: 'Amy (Friend ✌️)',         url: resolveAssetUrl('./amy_3d.glb'),         clipName: 'Amy_Forced_Peace_Interrogation',type: 'character', expectedBytes: 7981260 },
+  { id: 'lizzy', label: 'Lizzy (Sister)',          url: resolveAssetUrl('./lizzy_3d.glb'),       clipName: 'Lizzy_Nervous_Interrogation',   type: 'character', expectedBytes: 7622252 },
+  { id: 'props', label: '3D Saturn & Scene Props', url: resolveAssetUrl('./scene_props_3d.glb'), clipName: null,                            type: 'props',     expectedBytes: 45164212 }
 ];
 
+const TOTAL_EXPECTED_BYTES = ASSET_SPECS.reduce((acc, s) => acc + s.expectedBytes, 0);
 const assetProgressMap = new Map();
-ASSET_SPECS.forEach((a) => assetProgressMap.set(a.id, { loaded: 0, total: 1, ratio: 0, done: false, label: a.label }));
+ASSET_SPECS.forEach((a) =>
+  assetProgressMap.set(a.id, {
+    loaded: 0,
+    total: a.expectedBytes,
+    ratio: 0.02,
+    done: false,
+    label: a.label
+  })
+);
+
+let lastActiveStreamLabel = '5 3D Models in Parallel';
 
 function updateLoaderUI(activeLabel = '') {
-  let totalRatio = 0;
+  if (activeLabel) lastActiveStreamLabel = activeLabel;
+
+  let loadedBytesSum = 0;
+  let ratioSum = 0;
   let finishedCount = 0;
+
   assetProgressMap.forEach((info) => {
-    totalRatio += info.ratio;
+    loadedBytesSum += info.done ? info.total : Math.min(info.loaded, info.total);
+    ratioSum += info.ratio;
     if (info.done) finishedCount++;
   });
-  const avgPercent = Math.min(100, Math.round((totalRatio / ASSET_SPECS.length) * 100));
+
+  const modelWeightedRatio = ratioSum / ASSET_SPECS.length;
+  const byteWeightedRatio = loadedBytesSum / Math.max(1, TOTAL_EXPECTED_BYTES);
+  const combinedRatio = Math.max(modelWeightedRatio, byteWeightedRatio);
+  const avgPercent = finishedCount === ASSET_SPECS.length
+    ? 100
+    : Math.max(3, Math.min(99, Math.round(combinedRatio * 100)));
+
+  const loadedMB = (loadedBytesSum / (1024 * 1024)).toFixed(1);
+  const totalMB = (TOTAL_EXPECTED_BYTES / (1024 * 1024)).toFixed(1);
 
   if (loaderBarFill) {
     loaderBarFill.style.width = `${avgPercent}%`;
   }
   if (loaderStatusText) {
     if (finishedCount === ASSET_SPECS.length) {
-      loaderStatusText.textContent = '✨ All 3D Characters & Cosmic Assets Ready!';
-    } else if (activeLabel) {
-      loaderStatusText.textContent = `Streaming ${activeLabel}… (${avgPercent}%)`;
+      loaderStatusText.textContent = '✨ All 3D Characters & Cosmic Assets Ready! (100%)';
     } else {
-      loaderStatusText.textContent = `Loading 3D Soundstage & Cast… (${avgPercent}%)`;
+      loaderStatusText.textContent = `Streaming ${lastActiveStreamLabel}… (${avgPercent}%)`;
     }
   }
   if (loaderSubtext) {
     loaderSubtext.textContent = finishedCount === ASSET_SPECS.length
-      ? 'Parallel asset compilation complete • Ready to screen!'
-      : `Parallel stream: ${finishedCount} of ${ASSET_SPECS.length} assets ready (${avgPercent}%)`;
+      ? `Parallel asset compilation complete (${totalMB} MB) • Ready to screen!`
+      : `Parallel stream: ${loadedMB} MB / ${totalMB} MB • ${finishedCount} of ${ASSET_SPECS.length} models ready`;
   }
 }
 
-// Instantiate dedicated GLTFLoader
+// Mount each character or prop library into the 3D scene immediately as its stream finishes
+function mountLoadedAsset(spec, gltf) {
+  if (!gltf) return;
+
+  if (spec.type === 'character') {
+    const key = spec.id;
+    const baseModel = gltf.scene;
+    const clips = gltf.animations || [];
+    const targetClip = clips.find((c) => c.name === spec.clipName) || clips[0];
+
+    (characterSlots[key] || []).forEach(({ slot }) => {
+      const cloned = SkeletonUtils.clone(baseModel);
+      cloned.traverse((node) => {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+          node.frustumCulled = false;
+          if (node.material) {
+            node.material = node.material.clone();
+            const mName = node.material.name || '';
+            if (
+              mName.includes('CropTop') ||
+              mName.includes('PinkShirt') ||
+              mName.includes('StarTee') ||
+              mName.includes('Sweater')
+            ) {
+              node.material.vertexColors = false;
+            }
+            node.material.needsUpdate = true;
+          }
+        }
+      });
+      slot.add(cloned);
+
+      if (targetClip) {
+        const mixer = new THREE.AnimationMixer(cloned);
+        const action = mixer.clipAction(targetClip);
+        action.play();
+        characterMixers.push(mixer);
+      }
+    });
+  } else if (spec.type === 'props') {
+    const propTemplates = new Map();
+    gltf.scene.traverse((node) => {
+      if (node.name && node.name.startsWith('Prop_')) {
+        propTemplates.set(node.name, node);
+      }
+    });
+
+    propPlacementQueue.forEach(({ propName, holder }) => {
+      const template = propTemplates.get(propName);
+      if (!template) return;
+      const clone = template.clone(true);
+      clone.position.set(0, 0, 0);
+      clone.traverse((child) => {
+        if (child.isMesh) {
+          const matName = (child.material && child.material.name) || '';
+          if (matName.includes('lense')) {
+            child.material = child.material.clone();
+            child.material.transparent = true;
+            child.material.opacity = 0.34;
+            child.material.depthWrite = false;
+            child.castShadow = false;
+            child.receiveShadow = false;
+          } else {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        }
+      });
+      holder.add(clone);
+    });
+
+    // 1. Colossal 3D Saturn Backdrop (Prop_Saturn_Backdrop)
+    const saturnTemplate = propTemplates.get('Prop_Saturn_Backdrop');
+    if (saturnTemplate) {
+      saturnBackdropHero = saturnTemplate.clone(true);
+      saturnBackdropHero.scale.set(4.5, 4.5, 4.5);
+      saturnBackdropHero.position.set(12, 9.2, -16);
+      saturnBackdropHero.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = false;
+          child.receiveShadow = false;
+          child.frustumCulled = false;
+          if (child.material) {
+            child.material = child.material.clone();
+            if ((child.material.name || '').includes('Rings')) {
+              child.material.transparent = true;
+              child.material.side = THREE.DoubleSide;
+              child.material.depthWrite = false;
+            }
+          }
+        }
+      });
+      scene.add(saturnBackdropHero);
+    }
+
+    // 2. Companion 3D Ringed Exoplanet (Prop_Cosmic_Planet)
+    const exoTemplate = propTemplates.get('Prop_Cosmic_Planet');
+    if (exoTemplate) {
+      cosmicExoplanetHero = exoTemplate.clone(true);
+      cosmicExoplanetHero.scale.set(5.2, 5.2, 5.2);
+      cosmicExoplanetHero.position.set(-18, 11.5, -14);
+      cosmicExoplanetHero.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = false;
+          child.receiveShadow = false;
+        }
+      });
+      scene.add(cosmicExoplanetHero);
+    }
+
+    // 3. 160 Real 3D Blender Cosmic Orbiters
+    const cosmicPropKeys = [
+      'Prop_Cosmic_Star',
+      'Prop_Cosmic_Sparkle',
+      'Prop_Cosmic_Crystal',
+      'Prop_Cosmic_Asteroid',
+      'Prop_Cosmic_Planet'
+    ].filter((k) => propTemplates.has(k));
+
+    if (cosmicPropKeys.length > 0) {
+      const totalOrbiters = 160;
+      for (let i = 0; i < totalOrbiters; i++) {
+        const key = cosmicPropKeys[i % cosmicPropKeys.length];
+        const tpl = propTemplates.get(key);
+        const inst = tpl.clone(true);
+        const angle = (i / totalOrbiters) * Math.PI * 2 + (Math.random() - 0.5) * 0.25;
+        const radius = 15 + Math.random() * 32;
+        const baseY = -2.2 + Math.random() * 16.5;
+        const baseScale = key === 'Prop_Cosmic_Planet'
+          ? 0.55 + Math.random() * 0.65
+          : 0.45 + Math.random() * 0.85;
+
+        inst.position.set(Math.cos(angle) * radius, baseY, Math.sin(angle) * radius);
+        inst.scale.set(baseScale, baseScale, baseScale);
+        inst.rotation.set(
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2
+        );
+        inst.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = false;
+            child.receiveShadow = false;
+          }
+        });
+        cosmicOrbitersGroup.add(inst);
+        cosmicOrbiterItems.push({
+          mesh: inst,
+          baseY,
+          bobSpeed: 0.8 + Math.random() * 1.6,
+          bobPhase: Math.random() * Math.PI * 2,
+          bobAmp: 0.18 + Math.random() * 0.35,
+          rotSpeedX: (Math.random() - 0.5) * 1.4,
+          rotSpeedY: (Math.random() - 0.5) * 1.8,
+          rotSpeedZ: (Math.random() - 0.5) * 1.2
+        });
+      }
+    }
+  }
+}
+
+// Instantiate dedicated GLTFLoader and immediately kick off UI update
 const gltfLoader = new GLTFLoader();
+updateLoaderUI('5 3D Models in Parallel');
 
 function loadGLTFAsync(spec) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     gltfLoader.load(
       spec.url,
       (gltf) => {
         const item = assetProgressMap.get(spec.id);
         if (item) {
+          item.loaded = item.total;
           item.ratio = 1;
           item.done = true;
         }
+        mountLoadedAsset(spec, gltf);
         updateLoaderUI(spec.label);
         resolve({ spec, gltf });
       },
       (xhr) => {
-        if (xhr.lengthComputable && xhr.total > 0) {
-          const ratio = Math.min(1, xhr.loaded / xhr.total);
-          const item = assetProgressMap.get(spec.id);
-          if (item) {
-            item.loaded = xhr.loaded;
-            item.total = xhr.total;
-            item.ratio = ratio;
-          }
-          updateLoaderUI(spec.label);
+        // Note: When Nginx serves .glb with Content-Encoding: br (Brotli), xhr.lengthComputable is false
+        // and xhr.total is 0, while xhr.loaded reports decompressed bytes received so far!
+        const loadedBytes = xhr && typeof xhr.loaded === 'number' ? xhr.loaded : 0;
+        const totalBytes =
+          xhr && xhr.lengthComputable && xhr.total > 0 ? xhr.total : spec.expectedBytes;
+        const item = assetProgressMap.get(spec.id);
+        if (item && !item.done) {
+          item.loaded = loadedBytes;
+          item.total = totalBytes;
+          item.ratio = Math.max(item.ratio, Math.min(0.98, loadedBytes / Math.max(1, totalBytes)));
         }
+        updateLoaderUI(spec.label);
       },
       (err) => {
         console.warn(`[AssetLoader] Non-fatal load issue for ${spec.url}:`, err);
@@ -1192,170 +1384,7 @@ function loadGLTFAsync(spec) {
 }
 
 // Parallel execution via Promise.all across all 5 assets concurrently
-const parallelAssetsPromise = Promise.all(ASSET_SPECS.map((s) => loadGLTFAsync(s))).then((results) => {
-  results.forEach(({ spec, gltf }) => {
-    if (!gltf) return;
-
-    if (spec.type === 'character') {
-      const key = spec.id;
-      const baseModel = gltf.scene;
-      const clips = gltf.animations || [];
-      const targetClip = clips.find((c) => c.name === spec.clipName) || clips[0];
-
-      (characterSlots[key] || []).forEach(({ slot }) => {
-        const cloned = SkeletonUtils.clone(baseModel);
-        cloned.traverse((node) => {
-          if (node.isMesh) {
-            node.castShadow = true;
-            node.receiveShadow = true;
-            node.frustumCulled = false;
-            if (node.material) {
-              node.material = node.material.clone();
-              const mName = node.material.name || '';
-              if (
-                mName.includes('CropTop') ||
-                mName.includes('PinkShirt') ||
-                mName.includes('StarTee') ||
-                mName.includes('Sweater')
-              ) {
-                node.material.vertexColors = false;
-              }
-              node.material.needsUpdate = true;
-            }
-          }
-        });
-        slot.add(cloned);
-
-        if (targetClip) {
-          const mixer = new THREE.AnimationMixer(cloned);
-          const action = mixer.clipAction(targetClip);
-          action.play();
-          characterMixers.push(mixer);
-        }
-      });
-    } else if (spec.type === 'props') {
-      const propTemplates = new Map();
-      gltf.scene.traverse((node) => {
-        if (node.name && node.name.startsWith('Prop_')) {
-          propTemplates.set(node.name, node);
-        }
-      });
-
-      propPlacementQueue.forEach(({ propName, holder }) => {
-        const template = propTemplates.get(propName);
-        if (!template) return;
-        const clone = template.clone(true);
-        clone.position.set(0, 0, 0);
-        clone.traverse((child) => {
-          if (child.isMesh) {
-            const matName = (child.material && child.material.name) || '';
-            if (matName.includes('lense')) {
-              child.material = child.material.clone();
-              child.material.transparent = true;
-              child.material.opacity = 0.34;
-              child.material.depthWrite = false;
-              child.castShadow = false;
-              child.receiveShadow = false;
-            } else {
-              child.castShadow = true;
-              child.receiveShadow = true;
-            }
-          }
-        });
-        holder.add(clone);
-      });
-
-      // 1. Colossal 3D Saturn Backdrop (Prop_Saturn_Backdrop)
-      const saturnTemplate = propTemplates.get('Prop_Saturn_Backdrop');
-      if (saturnTemplate) {
-        saturnBackdropHero = saturnTemplate.clone(true);
-        saturnBackdropHero.scale.set(4.5, 4.5, 4.5);
-        saturnBackdropHero.position.set(12, 9.2, -16);
-        saturnBackdropHero.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = false;
-            child.receiveShadow = false;
-            child.frustumCulled = false;
-            if (child.material) {
-              child.material = child.material.clone();
-              if ((child.material.name || '').includes('Rings')) {
-                child.material.transparent = true;
-                child.material.side = THREE.DoubleSide;
-                child.material.depthWrite = false;
-              }
-            }
-          }
-        });
-        scene.add(saturnBackdropHero);
-      }
-
-      // 2. Companion 3D Ringed Exoplanet (Prop_Cosmic_Planet)
-      const exoTemplate = propTemplates.get('Prop_Cosmic_Planet');
-      if (exoTemplate) {
-        cosmicExoplanetHero = exoTemplate.clone(true);
-        cosmicExoplanetHero.scale.set(5.2, 5.2, 5.2);
-        cosmicExoplanetHero.position.set(-18, 11.5, -14);
-        cosmicExoplanetHero.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = false;
-            child.receiveShadow = false;
-          }
-        });
-        scene.add(cosmicExoplanetHero);
-      }
-
-      // 3. 160 Real 3D Blender Cosmic Orbiters
-      const cosmicPropKeys = [
-        'Prop_Cosmic_Star',
-        'Prop_Cosmic_Sparkle',
-        'Prop_Cosmic_Crystal',
-        'Prop_Cosmic_Asteroid',
-        'Prop_Cosmic_Planet'
-      ].filter((k) => propTemplates.has(k));
-
-      if (cosmicPropKeys.length > 0) {
-        const totalOrbiters = 160;
-        for (let i = 0; i < totalOrbiters; i++) {
-          const key = cosmicPropKeys[i % cosmicPropKeys.length];
-          const tpl = propTemplates.get(key);
-          const inst = tpl.clone(true);
-          const angle = (i / totalOrbiters) * Math.PI * 2 + (Math.random() - 0.5) * 0.25;
-          const radius = 15 + Math.random() * 32;
-          const baseY = -2.2 + Math.random() * 16.5;
-          const baseScale = key === 'Prop_Cosmic_Planet'
-            ? 0.55 + Math.random() * 0.65
-            : 0.45 + Math.random() * 0.85;
-
-          inst.position.set(Math.cos(angle) * radius, baseY, Math.sin(angle) * radius);
-          inst.scale.set(baseScale, baseScale, baseScale);
-          inst.rotation.set(
-            Math.random() * Math.PI * 2,
-            Math.random() * Math.PI * 2,
-            Math.random() * Math.PI * 2
-          );
-          inst.traverse((child) => {
-            if (child.isMesh) {
-              child.castShadow = false;
-              child.receiveShadow = false;
-            }
-          });
-          cosmicOrbitersGroup.add(inst);
-          cosmicOrbiterItems.push({
-            mesh: inst,
-            baseY,
-            bobSpeed: 0.8 + Math.random() * 1.6,
-            bobPhase: Math.random() * Math.PI * 2,
-            bobAmp: 0.18 + Math.random() * 0.35,
-            rotSpeedX: (Math.random() - 0.5) * 1.4,
-            rotSpeedY: (Math.random() - 0.5) * 1.8,
-            rotSpeedZ: (Math.random() - 0.5) * 1.2
-          });
-        }
-      }
-    }
-  });
-
-  // Smoothly transition from loader to start buttons
+Promise.all(ASSET_SPECS.map((s) => loadGLTFAsync(s))).then(() => {
   if (startupLoaderEl) {
     startupLoaderEl.style.opacity = '0';
     setTimeout(() => {
@@ -1363,7 +1392,7 @@ const parallelAssetsPromise = Promise.all(ASSET_SPECS.map((s) => loadGLTFAsync(s
       if (startButtonsGroup) {
         startButtonsGroup.classList.remove('hidden');
       }
-    }, 350);
+    }, 320);
   }
 });
 

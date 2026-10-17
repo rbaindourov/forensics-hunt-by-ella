@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:ital,wght@0,700;1,700&family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=20261017b" />
   <script type="importmap">
     {
       "imports": {
@@ -62,12 +62,27 @@
       <div class="start-Edits-summary">
         <div class="edit-chip">✨ 3D Rigged Cast: Katey, Mom, Amy &amp; Lizzy</div>
         <div class="edit-chip">🪑 3D Bedroom &amp; Interrogation Props</div>
-        <div class="edit-chip">✅ Panel 1: Floating open door removed</div>
-        <div class="edit-chip">✅ Panel 3: "Guilty" arrow on Lizzy removed</div>
-        <div class="edit-chip">✅ Panel 5: Crime Scene vs. Mom, Amy &amp; Lizzy prints separated</div>
-        <div class="edit-chip">✅ Panel 7 &amp; 8: Short-bob Lizzy &amp; "by Ella" finale</div>
+        <div class="edit-chip">🪐 3D Cosmic Saturn Backdrop</div>
+        <div class="edit-chip">🔍 Poly Haven Magnifying Glass</div>
+        <div class="edit-chip">📋 Act 6 Detective Notes &amp; Slamming Stamp</div>
       </div>
-      <div class="start-buttons">
+
+      <!-- Initial 3D Asset Loader UI -->
+      <div id="startup-loader" class="startup-loader">
+        <div class="loader-spinner-wrapper">
+          <div class="loader-spinner"></div>
+          <span class="loader-icon">🪐</span>
+        </div>
+        <div class="loader-text-group">
+          <div class="loader-status" id="loader-status-text">Streaming 5 3D Models in Parallel… (3%)</div>
+          <div class="loader-bar-bg">
+            <div class="loader-bar-fill" id="loader-bar-fill" style="width: 3%;"></div>
+          </div>
+          <div class="loader-subtext" id="loader-subtext">Parallel stream: 0.0 MB / 73.3 MB • 0 of 5 models ready</div>
+        </div>
+      </div>
+
+      <div class="start-buttons hidden" id="start-buttons-group">
         <button id="btn-start-movie" class="btn-primary-xl">
           <span>▶️</span> Start 3D Movie with Voiceover
         </button>
@@ -212,6 +227,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=20261017b"></script>
 </body>
 </html>
